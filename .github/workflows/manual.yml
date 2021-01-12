@@ -22,5 +22,6 @@ jobs:
       #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout this commit
         uses: actions/checkout@v2
-      - name: Run style checks
-        uses: dalpapa/actions-uncrustify@v1
+      - name: C++ Style Check (compiled)
+        uses: Dal-Papa/actions-uncrustify@v1.2
+
