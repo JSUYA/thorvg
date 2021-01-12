@@ -26,7 +26,7 @@ jobs:
         uses: gsactions/commit-message-checker@v1
         with:
           #pattern: '^[^#].{74}'
-          pattern: '.*'
+          pattern: '.*.{0,74}'
           error: 'The maximum line length of 74 characters is exceeded.'
           excludeDescription: 'true' # optional: this excludes the description body of a pull request
           excludeTitle: 'true' # optional: this excludes the title of a pull request
