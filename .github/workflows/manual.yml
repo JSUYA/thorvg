@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: C++ Style Check
-        # You may pin to the exact commit or the version.
-        # uses: coleaeason/actions-uncrustify@70f17f40b57ff933121e3cccafde98ea3eb0dee9
-        uses: coleaeason/actions-uncrustify@v1
+      - name: Checkout this commit
+        uses: actions/checkout@v2
+      - name: Run style checks
+        uses: dalpapa/actions-uncrustify@v1
