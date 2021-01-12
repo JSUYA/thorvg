@@ -23,9 +23,9 @@ void svgDirCallback(const char* name, const char* path, void* data)
     char buf[PATH_MAX];
     sprintf(buf, "/%s/%s", path, name);
 
-    if (picture->load(buf) != tvg::Result::Success) return;
+    if(picture->load(buf) != tvg::Result::Success) return;
 
-    picture->size(SIZE, SIZE);
+  picture->size(SIZE, SIZE);
     picture->translate((count % NUM_PER_LINE) * SIZE, SIZE * (count / NUM_PER_LINE));
 
     pictures.push_back(move(picture));
