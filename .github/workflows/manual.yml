@@ -16,13 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      #- name: clang-tidy check
-      #  uses: smay1613/clang-tidy-action@master
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Checkout this commit
-        uses: actions/checkout@v2
-      - name: C++ Style Check
-        uses: coleaeason/actions-uncrustify@v1
-
-
+      - name: clang-tidy check
+        uses: smay1613/clang-tidy-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
