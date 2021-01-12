@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout this commit
-        uses: actions/checkout@v2
-      - name: Run style checks
-        uses: dalpapa/actions-uncrustify@v1
+      - name: clang-tidy check
+        uses: smay1613/clang-tidy-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
