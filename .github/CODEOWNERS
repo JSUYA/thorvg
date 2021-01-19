@@ -1,0 +1,6 @@
+# This is an Owner list for Code Review.
+@hermet
+./src/loaders/* @JSUYA
+./src/wasm/* @kimcinoo
+./wasm_build.sh @kimcinoo
+./src/lib/gl_engine @prudhvirajv
