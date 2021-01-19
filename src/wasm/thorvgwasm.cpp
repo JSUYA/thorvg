@@ -1,5 +1,6 @@
 #include <thorvg.h>
 
+
 #include <emscripten/bind.h>
 
 using namespace emscripten;
