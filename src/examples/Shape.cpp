@@ -4,9 +4,8 @@
 /* Drawing Commands                                                     */
 /************************************************************************/
 
-void tvgDrawCmds(tvg::Canvas* canvas)
-{
-    if (!canvas) return;
+void tvgDrawCmds(tvg::Canvas* canvas) {
+    if(!canvas) return;
 
     //Prepare a Shape (Rectangle + Rectangle + Circle + Circle)
     auto shape1 = tvg::Shape::gen();
