@@ -54,7 +54,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install ninja-build gcc-multilib g++-multilib meson
-        sudo apt install libelementary-dev
+        sudo apt install libelementary-dev libelementary2 libelementary-bin
 
     - name: Build
       run: |
