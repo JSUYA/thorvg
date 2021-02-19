@@ -35,8 +35,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install ninja-build gcc-multilib g++-multilib meson
-        sudo apt install libelementary-dev libelementary2 libelementary-bin
-        cat /usr/local/include/elementary-1/elm_config.h
+        sudo apt install libelementary-dev
+        sudo find -name "elm_config.h"
 
     - name: Build
       run: |
