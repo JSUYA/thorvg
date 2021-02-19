@@ -34,10 +34,27 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo add-apt-repository ppa:niko2040/e19
-        sudo apt-get update
         sudo apt-get install ninja-build gcc-multilib g++-multilib meson
         sudo apt-get install libefl-dev
+
+    - name: Build
+      run: |
+        meson . build -Dexamples=true
+        cd build
+        sudo ninja -C . install
+        
+  example_build2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: false
+
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install ninja-build gcc-multilib g++-multilib meson
+        sudo apt install libelementary-dev
 
     - name: Build
       run: |
