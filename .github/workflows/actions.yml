@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        submodules: true
+        submodules: false
 
     - name: Install Packages
       run: |
@@ -29,10 +29,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        submodules: true
+        submodules: false
 
     - name: Install Packages
       run: |
+        sudo apt-get update
         sudo add-apt-repository ppa:niko2040/e19
         sudo apt-get update
         sudo apt-get install ninja-build gcc-multilib g++-multilib meson
@@ -49,7 +50,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        submodules: true
+        submodules: false
 
     - name: Install Packages
       run: |
