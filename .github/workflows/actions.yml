@@ -26,6 +26,8 @@ jobs:
         meson . build -Dlog=true -Dloaders="svg, tvg, png, jpg" -Dsavers="tvg"
         cd build
         sudo ninja -C . install
+        SUBMIT_TAG=submit/$(date '+%Y%m%d.%H%M%S')
+        echo "::notice title=Submit Request TAG::$SUBMIT_TAG"
 
   examples:
     runs-on: ubuntu-18.04
@@ -49,6 +51,7 @@ jobs:
         meson . build -Dexamples=true -Dloaders="svg, tvg, png, jpg" -Dsavers="tvg"
         cd build
         sudo ninja -C . install
+
 
   unit_test:
     runs-on: ubuntu-18.04
