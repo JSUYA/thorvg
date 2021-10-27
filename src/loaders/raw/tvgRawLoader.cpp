@@ -55,6 +55,8 @@ bool RawLoader::open(const uint32_t* data, uint32_t w, uint32_t h, bool copy)
         memcpy((void*)content, data, sizeof(uint32_t) * w * h);
     }
     else content = data;
+TVGLOG("RAW","PASS");
+
 
     return true;
 }

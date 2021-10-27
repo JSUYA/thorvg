@@ -119,8 +119,8 @@ TEST_CASE("Load PNG file from path", "[tvgPicture]")
     float w, h;
     REQUIRE(picture->size(&w, &h) == Result::Success);
 
-    REQUIRE(w == 512);
-    REQUIRE(h == 512);
+    REQUIRE(w == 104);
+    REQUIRE(h == 97);
 }
 
 TEST_CASE("Load PNG file from data", "[tvgPicture]")
@@ -129,20 +129,20 @@ TEST_CASE("Load PNG file from data", "[tvgPicture]")
     REQUIRE(picture);
 
     //Open file
-    ifstream file(TEST_DIR"/test.png");
+    ifstream file(TEST_DIR"/test.png", std::ios_base::in | std::ios_base::binary);
     REQUIRE(file.is_open());
-    auto size = sizeof(uint32_t) * (1000*1000);
+    auto size = sizeof(uint32_t) * (512*512);
     auto data = (char*)malloc(size);
     file.read(data, size);
     file.close();
 
-    REQUIRE(picture->load(data, size, "", false) == Result::Success);
     REQUIRE(picture->load(data, size, "png", true) == Result::Success);
+    REQUIRE(picture->load(data, size, "", false) == Result::Success);
 
     float w, h;
     REQUIRE(picture->size(&w, &h) == Result::Success);
-    REQUIRE(w == 512);
-    REQUIRE(h == 512);
+    REQUIRE(w == 104);
+    REQUIRE(h == 97);
 
     free(data);
 }

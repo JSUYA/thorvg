@@ -3,7 +3,7 @@ source_file = [
    'tvgPngLoader.cpp',
 ]
 
-png_dep = dependency('libpng', required: false)
+png_dep = dependency('lib123png', required: false)
 
 if png_dep.found()
     subloader_dep += [declare_dependency(

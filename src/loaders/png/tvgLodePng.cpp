@@ -45,6 +45,8 @@
 */
 
 #include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #include "tvgLodePng.h"
 
 
@@ -2524,9 +2526,11 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state, const un
     unsigned width, height;
     LodePNGInfo* info = &state->info_png;
     if (insize == 0 || in == 0) {
+fprintf(stdout, "loadpng log(%d) inssize %ld in %p\n", __LINE__,insize, in);
         CERROR_RETURN_ERROR(state->error, 48); /*error: the given data is empty*/
     }
     if (insize < 33) {
+fprintf(stdout, "loadpng(%d) log inssize %ld in %p\n", __LINE__,insize, in);
         CERROR_RETURN_ERROR(state->error, 27); /*error: the data length is smaller than the length of a PNG header*/
     }
 
@@ -2536,12 +2540,15 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state, const un
     lodepng_info_init(info);
 
     if (in[0] != 137 || in[1] != 80 || in[2] != 78 || in[3] != 71 || in[4] != 13 || in[5] != 10 || in[6] != 26 || in[7] != 10) {
+fprintf(stdout, "loadpng(%d) log inssize %ld in %p (%d %d %d %d %d %d %d %d)\n", __LINE__,insize, in, in[0] != 137 , in[1] != 80 , in[2] != 78 , in[3] != 71 , in[4] != 13 , in[5] != 10 , in[6] != 26 , in[7] != 10);
         CERROR_RETURN_ERROR(state->error, 28); /*error: the first 8 bytes are not the correct PNG signature*/
     }
     if (lodepng_chunk_length(in + 8) != 13) {
+fprintf(stdout, "loadpng(%d) log inssize %ld in %p\n", __LINE__,insize, in);
         CERROR_RETURN_ERROR(state->error, 94); /*error: header size must be 13 bytes*/
     }
     if (!lodepng_chunk_type_equals(in + 8, "IHDR")) {
+fprintf(stdout, "loadpng(%d) log inssize %ld in %p\n", __LINE__,insize, in);
         CERROR_RETURN_ERROR(state->error, 29); /*error: it doesn't start with a IHDR chunk!*/
     }
 

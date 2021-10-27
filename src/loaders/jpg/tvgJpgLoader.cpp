@@ -61,6 +61,7 @@ bool JpgLoader::open(const char* data, uint32_t size, bool copy)
     vw = w = static_cast<float>(width);
     vh = h = static_cast<float>(height);
 
+TVGLOG("JPG","OPEN!!");
     return true;
 }
 

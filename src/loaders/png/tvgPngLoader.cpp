@@ -103,11 +103,18 @@ bool PngLoader::open(const char* data, uint32_t size, bool copy)
     lodepng_state_init(&state);
     
     unsigned int width, height;
-    if (lodepng_inspect(&width, &height, &state, (unsigned char*)(data), size) > 0) return false;
+TVGLOG("PNG","try! open width : %d height : %d size : %d", width, height, size);
+    if (lodepng_inspect(&width, &height, &state, (unsigned char*)(data), size) > 0) {
+
+TVGLOG("PNG","open fail lodepng_inspect width : %d height : %d size : %d", width, height, size);
+clear();
+return false;}
 
     if (copy) {
         this->data = (unsigned char *) malloc(size);
-        if (!this->data) return false;
+        if (!this->data) {
+TVGLOG("PNG", "PNG copy fail");
+return false;}
         memcpy((unsigned char *)this->data, data, size);
         freeData = true;
     } else {
@@ -118,6 +125,7 @@ bool PngLoader::open(const char* data, uint32_t size, bool copy)
     w = static_cast<float>(width);
     h = static_cast<float>(height);
     this->size = size;
+TVGLOG("PNG","OPEN!!");
 
     return true;
 }
