@@ -7,9 +7,7 @@ fi
 
 COMMENTS_URL=$(cat $GITHUB_EVENT_PATH | jq -r .pull_request.comments_url)
 
-if [[ -n "$COMMENTS_URL" ]]; then
-    echo "The GITHUB_EVENT_PATH is required."
-else
+if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
     echo "Run Valgrind"
     echo "valgrind --leak-check=yes ./tvgUnitTests"
     cd ./build/test
