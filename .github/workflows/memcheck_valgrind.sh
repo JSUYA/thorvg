@@ -15,6 +15,11 @@ valgrind --leak-check=yes ./tvgUnitTests > memcheck_valgrind.txt 2>&1
 PAYLOAD_MEMCHECK=`cat memcheck_valgrind.txt`
 COMMENTS_URL=$(cat $GITHUB_EVENT_PATH | jq -r .pull_request.comments_url)
 
+if [[ -z "$COMMENTS_URL" ]]; then
+	echo "The GITHUB_EVENT_PATH is required."
+	exit 1
+fi
+
 echo $COMMENTS_URL
 echo "MEMCHECK errors:"
 echo $PAYLOAD_MEMCHECK
