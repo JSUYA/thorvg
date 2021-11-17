@@ -107,8 +107,9 @@ Summary:
     Log Message:           @12@
     Tests:                 @13@
     Examples:              @14@
-    Tool (Svg2Tvg):        @15@
-    Tool (Svg2Png):        @16@
+    Sanitize:              @15@
+    Tool (Svg2Tvg):        @16@
+    Tool (Svg2Png):        @17@
 
 '''.format(
         meson.project_version(),
@@ -126,6 +127,7 @@ Summary:
         get_option('log'),
         get_option('tests'),
         get_option('examples'),
+        get_option('b_sanitize'),
         all_tools or get_option('tools').contains('svg2tvg'),
         all_tools or get_option('tools').contains('svg2png'),
     )

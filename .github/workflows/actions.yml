@@ -19,7 +19,9 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib meson
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
+        sudo apt-get install python3-pip
+        pip3 install meson --user
 
     - name: Install TurboJPEG library
       run: sudo apt-get install libturbojpeg0-dev libjpeg8-dev
@@ -41,8 +43,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo add-apt-repository ppa:niko2040/e19
-        sudo apt-get install ninja-build gcc-multilib g++-multilib meson
+        sudo apt-get install ninja-build gcc-multilib g++-multilib
         sudo apt-get install libefl-dev
+        sudo apt-get install python3-pip
+        pip3 install meson --user
 
     - name: Install TurboJPEG library
       run: sudo apt-get install libturbojpeg0-dev libjpeg8-dev
@@ -63,9 +67,11 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install ninja-build gcc-multilib g++-multilib libgtest-dev meson cmake cmake-data libasan5 valgrind
+        sudo apt-get install ninja-build gcc-multilib g++-multilib libgtest-dev cmake cmake-data libasan5 valgrind
         sudo apt-get install curl jq
         sudo apt-get install software-properties-common
+        sudo apt-get install python3-pip
+        pip3 install meson --user
 
     - name: Install TurboJPEG library
       run: sudo apt-get install libturbojpeg0-dev libjpeg8-dev
@@ -94,6 +100,18 @@ jobs:
         export PATH=$PATH:~/.local/bin/
         chmod +x "${GITHUB_WORKSPACE}/.github/workflows/memcheck_valgrind.sh"
         "${GITHUB_WORKSPACE}/.github/workflows/memcheck_valgrind.sh"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build & Run memcheck Script(ASAN)
+      run: |
+        sudo rm -rf ./build
+        meson . build -Db_sanitize="address,undefined" -Dloaders="all" -Dsavers="tvg" -Dtests="true" -Dbindings="capi"
+        cd build
+        sudo ninja -C . install
+        export PATH=$PATH:~/.local/bin/
+        chmod +x "${GITHUB_WORKSPACE}/.github/workflows/memcheck_asan.sh"
+        "${GITHUB_WORKSPACE}/.github/workflows/memcheck_asan.sh"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
