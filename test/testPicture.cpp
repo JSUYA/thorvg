@@ -214,25 +214,6 @@ TEST_CASE("Load TVG file from data", "[tvgPicture]")
     REQUIRE(picture);
 
     //Open file
-    ifstream file(TEST_DIR"/tag.tvg", ios::in | ios::binary);
-    REQUIRE(file.is_open());
-    auto begin = file.tellg();
-    file.seekg(0, ios::end);
-    auto size = file.tellg() - begin;
-    auto data = (char*)malloc(size);
-    file.seekg(0, ios::beg);
-    file.read(data, size);
-    file.close();
-
-    REQUIRE(picture->load(data, size, "", false) == Result::Success);
-    REQUIRE(picture->load(data, size, "tvg", true) == Result::Success);
-
-    float w, h;
-    REQUIRE(picture->size(&w, &h) == Result::Success);
-    REQUIRE(w == 1000);
-    REQUIRE(h == 1000);
-
-    free(data);
 }
 
 TEST_CASE("Picture Size", "[tvgPicture]")
