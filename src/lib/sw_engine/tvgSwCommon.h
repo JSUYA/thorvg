@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 #ifndef _TVG_SW_COMMON_H_
 #define _TVG_SW_COMMON_H_
 
@@ -29,7 +30,7 @@
 #include <sys/time.h>
 static double timeStamp()
 {
-   struct timeval tv;
+    struct timeval tv;
    gettimeofday(&tv, NULL);
    return (tv.tv_sec + tv.tv_usec / 1000000.0);
 }
