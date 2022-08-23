@@ -25,7 +25,7 @@
 #include <thorvg.h>
 #include <vector>
 #include "lodepng.h"
-#ifdef _WIN32
+#ifdef __MSC_VER
     #include <windows.h>
     #ifndef PATH_MAX
         #define PATH_MAX MAX_PATH
@@ -285,7 +285,7 @@ private:
     const char* realFile(const char* path)
     {
         //real path
-#ifdef _WIN32
+#ifdef __MSC_VER
         path = _fullpath(full, path, PATH_MAX);
 #else
         path = realpath(path, full);
@@ -295,7 +295,7 @@ private:
 
     bool isDirectory(const char* path)
     {
-#ifdef _WIN32
+#ifdef __MSC_VER
         DWORD attr = GetFileAttributes(path);
         if (attr == INVALID_FILE_ATTRIBUTES)
           return false;
@@ -328,7 +328,7 @@ private:
     int handleDirectory(const string& path)
     {
         //open directory
-#ifdef _WIN32
+#ifdef __MSC_VER
         WIN32_FIND_DATA fd;
         HANDLE h = FindFirstFileEx((path + "\\*").c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch, NULL, 0);
         if (h == INVALID_HANDLE_VALUE) {
