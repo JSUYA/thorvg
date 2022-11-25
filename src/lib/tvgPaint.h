@@ -65,6 +65,7 @@ namespace tvg
         uint32_t renderFlag = RenderUpdateFlag::None;
         uint32_t ctxFlag = ContextFlag::Invalid;
         uint32_t id;
+        std::string tag;
         uint8_t opacity = 255;
 
         ~Impl()

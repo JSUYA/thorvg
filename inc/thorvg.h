@@ -372,6 +372,22 @@ public:
      */
     uint32_t identifier() const noexcept;
 
+    /**
+     * @brief 
+     *
+     * @BETA_API
+     */
+    void tag(std::string tag) const noexcept;
+
+    /**
+     * @brief Return
+     *
+     * @return The tag name.
+     *
+     * @BETA_API
+     */
+    std::string tag() const noexcept;
+
     _TVG_DECLARE_ACCESSOR();
     _TVG_DECLARE_PRIVATE(Paint);
 };

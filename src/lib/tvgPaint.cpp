@@ -405,3 +405,14 @@ uint32_t Paint::identifier() const noexcept
 {
     return pImpl->id;
 }
+
+
+void Paint::tag(std::string tag) const noexcept
+{
+    pImpl->tag = tag;
+}
+
+std::string Paint::tag() const noexcept
+{
+    return pImpl->tag;
+}

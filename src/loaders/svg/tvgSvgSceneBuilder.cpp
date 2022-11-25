@@ -729,6 +729,7 @@ static unique_ptr<Scene> _sceneBuildHelper(const SvgNode* node, const Box& vBox,
                 } else if ((*child)->type == SvgNodeType::Image) {
                     auto image = _imageBuildHelper(*child, vBox, svgPath);
                     if (image) {
+                        if ((*child)->id) image->tag(std::string((*child)->id));
                         scene->push(move(image));
                         if (isMaskWhite) *isMaskWhite = false;
                     }
@@ -743,6 +744,7 @@ static unique_ptr<Scene> _sceneBuildHelper(const SvgNode* node, const Box& vBox,
                                 *isMaskWhite = false;
                             }
                         }
+                        if ((*child)->id) shape->tag(std::string((*child)->id));
                         scene->push(move(shape));
                     }
                 }
@@ -750,6 +752,7 @@ static unique_ptr<Scene> _sceneBuildHelper(const SvgNode* node, const Box& vBox,
             _applyComposition(scene.get(), node, vBox, svgPath);
             scene->opacity(node->style->opacity);
         }
+        if (node->id) scene->tag(std::string(node->id));
         return scene;
     }
     return nullptr;
