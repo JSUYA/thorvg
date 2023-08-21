@@ -148,6 +148,7 @@ Summary:
     Examples:              @19@
     Tool (Svg2Tvg):        @20@
     Tool (Svg2Png):        @21@
+    tvg::Window:           @22@
 
 '''.format(
         meson.project_version(),
@@ -172,6 +173,7 @@ Summary:
         get_option('examples'),
         all_tools or get_option('tools').contains('svg2tvg'),
         all_tools or get_option('tools').contains('svg2png'),
+        get_option('windows'),
     )
 
 message(summary)
