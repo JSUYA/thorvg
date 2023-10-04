@@ -18,9 +18,9 @@ jobs:
       with:
         msystem: MINGW64
         install: >-
-          libjpeg-turbo
-          libpng
-          libwebp
+          mingw-w64-x86_64-libjpeg-turbo
+          mingw-w64-x86_64-libpng
+          mingw-w64-x86_64-libwebp
 
     - name: Install Packages
       run: |
@@ -67,9 +67,9 @@ jobs:
       with:
         msystem: MINGW64
         install: >-
-          libjpeg-turbo
-          libpng
-          libwebp
+          mingw-w64-x86_64-libjpeg-turbo
+          mingw-w64-x86_64-libpng
+          mingw-w64-x86_64-libwebp
 
     - name: Install Packages
       run: |
