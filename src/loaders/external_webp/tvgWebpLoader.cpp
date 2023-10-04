@@ -52,7 +52,7 @@ WebpLoader::WebpLoader()
 WebpLoader::~WebpLoader()
 {
     if (freeData) free(data);
-    WebPFree(image);
+    free(image);
 }
 
 
@@ -162,7 +162,7 @@ unique_ptr<Surface> WebpLoader::bitmap()
 void WebpLoader::run(unsigned tid)
 {
     if (image) {
-        WebPFree(image);
+        free(image);
         image = nullptr;
     }
 
