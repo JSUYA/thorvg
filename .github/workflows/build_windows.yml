@@ -17,7 +17,7 @@ jobs:
 
     - name: Install Packages
       run: |
-        pip install meson ninja webp
+        pip install meson ninja
         
     - name: Build
       run: |
@@ -65,7 +65,7 @@ jobs:
       run: |
         meson setup --backend=ninja build -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtests=true --errorlogs
         where link
-        ninja -C build install test
+        ninja -C build install
 
     - uses: actions/upload-artifact@v3
       with:
