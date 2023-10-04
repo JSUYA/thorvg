@@ -3,7 +3,7 @@ source_file = [
    'tvgWebpLoader.cpp',
 ]
 
-webp_dep = dependency('libwebp', required: true)
+webp_dep = dependency('libwebp', required: false)
 
 subloader_dep += [declare_dependency(
     include_directories : include_directories('.'),
