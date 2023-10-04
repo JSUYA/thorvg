@@ -17,10 +17,11 @@ jobs:
 
     - name: Install Packages
       run: |
+        pip install meson ninja
         vcpkg install libwebp
         vcpkg install libjpeg-turbo
         vcpkg install libpng
-        pip install meson ninja
+        
         
     - name: Build
       run: |
@@ -63,10 +64,11 @@ jobs:
 
     - name: Install Packages
       run: |
+        pip install meson ninja
         vcpkg install libwebp
         vcpkg install libjpeg-turbo
         vcpkg install libpng
-        pip install meson ninja
+        pkg-config
 
     - name: Build
       run: |
