@@ -13,7 +13,6 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: ilammy/msvc-dev-cmd@v1
     - uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
@@ -62,7 +61,6 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: ilammy/msvc-dev-cmd@v1
     - uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
