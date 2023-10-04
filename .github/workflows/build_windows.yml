@@ -13,17 +13,11 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        install: >-
-          mingw-w64-x86_64-libjpeg-turbo
-          mingw-w64-x86_64-libpng
-          mingw-w64-x86_64-libwebp
+    - uses: ilammy/msvc-dev-cmd@v2
 
     - name: Install Packages
       run: |
-        pip install meson==0.58.0 ninja  
+        pip install meson ninja  
         
     - name: Build
       run: |
@@ -61,17 +55,11 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        install: >-
-          mingw-w64-x86_64-libjpeg-turbo
-          mingw-w64-x86_64-libpng
-          mingw-w64-x86_64-libwebp
+    - uses: ilammy/msvc-dev-cmd@v2
 
     - name: Install Packages
       run: |
-        pip install meson==0.58.0 ninja
+        pip install meson ninja
 
     - name: Build
       run: |
