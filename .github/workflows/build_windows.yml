@@ -14,12 +14,17 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
+    - uses: msys2/setup-msys2@v2
+      with:
+        install: >-
+          libjpeg-turbo
+          libpng
+          libwebp
 
     - name: Install Packages
       run: |
-        vcpkg install libwebp
-        pip install meson==0.58.0 ninja
-
+        pip install meson==0.58.0 ninja  
+        
     - name: Build
       run: |
         meson setup --backend=ninja build -Dlog=true -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtools="all"
@@ -57,10 +62,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
+    - uses: msys2/setup-msys2@v2
+      with:
+        install: >-
+          libjpeg-turbo
+          libpng
+          libwebp
 
     - name: Install Packages
       run: |
-        vcpkg install libwebp
         pip install meson==0.58.0 ninja
 
     - name: Build
