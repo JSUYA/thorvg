@@ -22,6 +22,7 @@ jobs:
     - name: Build
       run: |
         meson setup --backend=ninja build -Dlog=true -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtools="all"
+        make_error_command
         where link
         ninja -C build install
 
