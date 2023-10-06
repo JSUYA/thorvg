@@ -7,6 +7,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate debugging enabled.'
+        required: false
+        default: false
 
 jobs:
   build:
@@ -29,6 +36,10 @@ jobs:
       with:
         name: result
         path: build/src/thorvg*
+
+    - if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   static_loaders:
     runs-on: windows-latest
