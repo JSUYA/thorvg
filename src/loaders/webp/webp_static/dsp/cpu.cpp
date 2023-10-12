@@ -84,25 +84,7 @@ static int x86CPUInfo(CPUFeature feature) {
   if (feature == kSSE2) {
     return 0 != (cpu_info[3] & 0x04000000);
   }
-  if (feature == kSSE3) {
-    return 0 != (cpu_info[2] & 0x00000001);
-  }
-  if (feature == kSSE4_1) {
-    return 0 != (cpu_info[2] & 0x00080000);
-  }
-  if (feature == kAVX) {
-    // bits 27 (OSXSAVE) & 28 (256-bit AVX)
-    if ((cpu_info[2] & 0x18000000) == 0x18000000) {
-      // XMM state and YMM state enabled by the OS.
-      return (xgetbv() & 0x6) == 0x6;
-    }
-  }
-  if (feature == kAVX2) {
-    if (x86CPUInfo(kAVX)) {
-      GetCPUInfo(cpu_info, 7);
-      return ((cpu_info[1] & 0x00000020) == 0x00000020);
-    }
-  }
+ 
   return 0;
 }
 VP8CPUInfo VP8GetCPUInfo = x86CPUInfo;

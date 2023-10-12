@@ -52,51 +52,12 @@ extern "C" {
 #define WEBP_MSC_SSE2  // Visual C++ SSE2 targets
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER >= 1500 && \
-    (defined(_M_X64) || defined(_M_IX86))
-#define WEBP_MSC_SSE41  // Visual C++ SSE4.1 targets
-#endif
-
 // WEBP_HAVE_* are used to indicate the presence of the instruction set in dsp
 // files without intrinsics, allowing the corresponding Init() to be called.
 // Files containing intrinsics will need to be built targeting the instruction
 // set so should succeed on one of the earlier tests.
 #if defined(__SSE2__) || defined(WEBP_MSC_SSE2) || defined(WEBP_HAVE_SSE2)
-#define WEBP_USE_SSE2
-#endif
-
-#if defined(__SSE4_1__) || defined(WEBP_MSC_SSE41) || defined(WEBP_HAVE_SSE41)
-#define WEBP_USE_SSE41
-#endif
-
-#if defined(__AVX2__) || defined(WEBP_HAVE_AVX2)
-#define WEBP_USE_AVX2
-#endif
-
-#if defined(__ANDROID__) && defined(__ARM_ARCH_7A__)
-#define WEBP_ANDROID_NEON  // Android targets that might support NEON
-#endif
-
-// The intrinsics currently cause compiler errors with arm-nacl-gcc and the
-// inline assembly would need to be modified for use with Native Client.
-#if (defined(__ARM_NEON__) || defined(WEBP_ANDROID_NEON) || \
-     defined(__aarch64__)) && !defined(__native_client__)
-#define WEBP_USE_NEON
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_M_ARM)
-#define WEBP_USE_NEON
-#define WEBP_USE_INTRINSICS
-#endif
-
-#if defined(__mips__) && !defined(__mips64) && (__mips_isa_rev < 6)
-#define WEBP_USE_MIPS32
-#if (__mips_isa_rev >= 2)
-#define WEBP_USE_MIPS32_R2
-#if defined(__mips_dspr2) || (__mips_dsp_rev >= 2)
-#define WEBP_USE_MIPS_DSP_R2
-#endif
-#endif
+//#define WEBP_USE_SSE2
 #endif
 
 // This macro prevents thread_sanitizer from reporting known concurrent writes.
@@ -110,13 +71,6 @@ extern "C" {
 
 typedef enum {
   kSSE2,
-  kSSE3,
-  kSSE4_1,
-  kAVX,
-  kAVX2,
-  kNEON,
-  kMIPS32,
-  kMIPSdspR2
 } CPUFeature;
 // returns true if the CPU supports the feature.
 typedef int (*VP8CPUInfo)(CPUFeature feature);
@@ -132,94 +86,6 @@ WEBP_EXTERN(VP8CPUInfo) VP8GetCPUInfo;
   WEBP_TSAN_IGNORE_FUNCTION void func(void) {}
 
 //------------------------------------------------------------------------------
-// Encoding
-
-// Transforms
-// VP8Idct: Does one of two inverse transforms. If do_two is set, the transforms
-//          will be done for (ref, in, dst) and (ref + 4, in + 16, dst + 4).
-typedef void (*VP8Idct)(const uint8_t* ref, const int16_t* in, uint8_t* dst,
-                        int do_two);
-typedef void (*VP8Fdct)(const uint8_t* src, const uint8_t* ref, int16_t* out);
-typedef void (*VP8WHT)(const int16_t* in, int16_t* out);
-extern VP8Idct VP8ITransform;
-extern VP8Fdct VP8FTransform;
-extern VP8WHT VP8FTransformWHT;
-// Predictions
-// *dst is the destination block. *top and *left can be NULL.
-typedef void (*VP8IntraPreds)(uint8_t *dst, const uint8_t* left,
-                              const uint8_t* top);
-typedef void (*VP8Intra4Preds)(uint8_t *dst, const uint8_t* top);
-extern VP8Intra4Preds VP8EncPredLuma4;
-extern VP8IntraPreds VP8EncPredLuma16;
-extern VP8IntraPreds VP8EncPredChroma8;
-
-typedef int (*VP8Metric)(const uint8_t* pix, const uint8_t* ref);
-extern VP8Metric VP8SSE16x16, VP8SSE16x8, VP8SSE8x8, VP8SSE4x4;
-typedef int (*VP8WMetric)(const uint8_t* pix, const uint8_t* ref,
-                          const uint16_t* const weights);
-extern VP8WMetric VP8TDisto4x4, VP8TDisto16x16;
-
-typedef void (*VP8BlockCopy)(const uint8_t* src, uint8_t* dst);
-extern VP8BlockCopy VP8Copy4x4;
-extern VP8BlockCopy VP8Copy16x8;
-// Quantization
-struct VP8Matrix;   // forward declaration
-typedef int (*VP8QuantizeBlock)(int16_t in[16], int16_t out[16],
-                                const struct VP8Matrix* const mtx);
-// Same as VP8QuantizeBlock, but quantizes two consecutive blocks.
-typedef int (*VP8Quantize2Blocks)(int16_t in[32], int16_t out[32],
-                                  const struct VP8Matrix* const mtx);
-
-extern VP8QuantizeBlock VP8EncQuantizeBlock;
-extern VP8Quantize2Blocks VP8EncQuantize2Blocks;
-
-// specific to 2nd transform:
-typedef int (*VP8QuantizeBlockWHT)(int16_t in[16], int16_t out[16],
-                                   const struct VP8Matrix* const mtx);
-extern VP8QuantizeBlockWHT VP8EncQuantizeBlockWHT;
-
-extern const int VP8DspScan[16 + 4 + 4];
-
-// Collect histogram for susceptibility calculation.
-#define MAX_COEFF_THRESH   31   // size of histogram used by CollectHistogram.
-typedef struct {
-  // We only need to store max_value and last_non_zero, not the distribution.
-  int max_value;
-  int last_non_zero;
-} VP8Histogram;
-typedef void (*VP8CHisto)(const uint8_t* ref, const uint8_t* pred,
-                          int start_block, int end_block,
-                          VP8Histogram* const histo);
-extern VP8CHisto VP8CollectHistogram;
-// General-purpose util function to help VP8CollectHistogram().
-void VP8SetHistogramData(const int distribution[MAX_COEFF_THRESH + 1],
-                         VP8Histogram* const histo);
-
-// must be called before using any of the above
-void VP8EncDspInit(void);
-
-//------------------------------------------------------------------------------
-// cost functions (encoding)
-
-extern const uint16_t VP8EntropyCost[256];        // 8bit fixed-point log(p)
-// approximate cost per level:
-extern const uint16_t VP8LevelFixedCosts[2047 /*MAX_LEVEL*/ + 1];
-extern const uint8_t VP8EncBands[16 + 1];
-
-struct VP8Residual;
-typedef void (*VP8SetResidualCoeffsFunc)(const int16_t* const coeffs,
-                                         struct VP8Residual* const res);
-extern VP8SetResidualCoeffsFunc VP8SetResidualCoeffs;
-
-// Cost calculation function.
-typedef int (*VP8GetResidualCostFunc)(int ctx0,
-                                      const struct VP8Residual* const res);
-extern VP8GetResidualCostFunc VP8GetResidualCost;
-
-// must be called before anything using the above
-void VP8EncDspCostInit(void);
-
-//------------------------------------------------------------------------------
 // Decoding
 
 typedef void (*VP8DecIdct)(const int16_t* coeffs, uint8_t* dst);
@@ -230,7 +96,6 @@ extern VP8DecIdct VP8TransformAC3;
 extern VP8DecIdct VP8TransformUV;
 extern VP8DecIdct VP8TransformDC;
 extern VP8DecIdct VP8TransformDCUV;
-extern VP8WHT VP8TransformWHT;
 
 // *dst is the destination block, with stride BPS. Boundary samples are
 // assumed accessible when needed.
@@ -413,8 +278,6 @@ extern void (*VP8PackARGB)(const uint8_t* a, const uint8_t* r,
 extern void (*VP8PackRGB)(const uint8_t* r, const uint8_t* g, const uint8_t* b,
                           int len, int step, uint32_t* out);
 
-// To be called first before using the above.
-void VP8EncDspARGBInit(void);
 
 //------------------------------------------------------------------------------
 // Filter functions

@@ -444,6 +444,33 @@ static WEBP_INLINE uint32_t NzCodeBits(uint32_t nz_coeffs, int nz, int dc_nz) {
   return nz_coeffs;
 }
 
+static void TransformWHT(const int16_t* in, int16_t* out) {
+  int tmp[16];
+  int i;
+  for (i = 0; i < 4; ++i) {
+    const int a0 = in[0 + i] + in[12 + i];
+    const int a1 = in[4 + i] + in[ 8 + i];
+    const int a2 = in[4 + i] - in[ 8 + i];
+    const int a3 = in[0 + i] - in[12 + i];
+    tmp[0  + i] = a0 + a1;
+    tmp[8  + i] = a0 - a1;
+    tmp[4  + i] = a3 + a2;
+    tmp[12 + i] = a3 - a2;
+  }
+  for (i = 0; i < 4; ++i) {
+    const int dc = tmp[0 + i * 4] + 3;    // w/ rounder
+    const int a0 = dc             + tmp[3 + i * 4];
+    const int a1 = tmp[1 + i * 4] + tmp[2 + i * 4];
+    const int a2 = tmp[1 + i * 4] - tmp[2 + i * 4];
+    const int a3 = dc             - tmp[3 + i * 4];
+    out[ 0] = (a0 + a1) >> 3;
+    out[16] = (a3 + a2) >> 3;
+    out[32] = (a0 - a1) >> 3;
+    out[48] = (a3 - a2) >> 3;
+    out += 64;
+  }
+}
+
 static int ParseResiduals(VP8Decoder* const dec,
                           VP8MB* const mb, VP8BitReader* const token_br) {
   const VP8BandProbas* (* const bands)[16 + 1] = dec->proba_.bands_ptr_;
@@ -466,7 +493,7 @@ static int ParseResiduals(VP8Decoder* const dec,
     const int nz = GetCoeffs(token_br, bands[1], ctx, q->y2_mat_, 0, dc);
     mb->nz_dc_ = left_mb->nz_dc_ = (nz > 0);
     if (nz > 1) {   // more than just the DC -> perform the full transform
-      VP8TransformWHT(dc, dst);
+      TransformWHT(dc, dst);
     } else {        // only DC is non-zero -> inlined simplified transform
       int i;
       const int dc0 = (dc[0] + 3) >> 3;

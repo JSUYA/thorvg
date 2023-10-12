@@ -527,83 +527,6 @@ static VP8StatusCode DecodeInto(const uint8_t* const data, size_t data_size,
   return status;
 }
 
-// Helpers
-static uint8_t* DecodeIntoRGBABuffer(WEBP_CSP_MODE colorspace,
-                                     const uint8_t* const data,
-                                     size_t data_size,
-                                     uint8_t* const rgba,
-                                     int stride, size_t size) {
-  WebPDecParams params;
-  WebPDecBuffer buf;
-  if (rgba == NULL) {
-    return NULL;
-  }
-  WebPInitDecBuffer(&buf);
-  WebPResetDecParams(&params);
-  params.output = &buf;
-  buf.colorspace    = colorspace;
-  buf.u.RGBA.rgba   = rgba;
-  buf.u.RGBA.stride = stride;
-  buf.u.RGBA.size   = size;
-  buf.is_external_memory = 1;
-  if (DecodeInto(data, data_size, &params) != VP8_STATUS_OK) {
-    return NULL;
-  }
-  return rgba;
-}
-
-uint8_t* WebPDecodeRGBInto(const uint8_t* data, size_t data_size,
-                           uint8_t* output, size_t size, int stride) {
-  return DecodeIntoRGBABuffer(MODE_RGB, data, data_size, output, stride, size);
-}
-
-uint8_t* WebPDecodeRGBAInto(const uint8_t* data, size_t data_size,
-                            uint8_t* output, size_t size, int stride) {
-  return DecodeIntoRGBABuffer(MODE_RGBA, data, data_size, output, stride, size);
-}
-
-uint8_t* WebPDecodeARGBInto(const uint8_t* data, size_t data_size,
-                            uint8_t* output, size_t size, int stride) {
-  return DecodeIntoRGBABuffer(MODE_ARGB, data, data_size, output, stride, size);
-}
-
-uint8_t* WebPDecodeBGRInto(const uint8_t* data, size_t data_size,
-                           uint8_t* output, size_t size, int stride) {
-  return DecodeIntoRGBABuffer(MODE_BGR, data, data_size, output, stride, size);
-}
-
-uint8_t* WebPDecodeBGRAInto(const uint8_t* data, size_t data_size,
-                            uint8_t* output, size_t size, int stride) {
-  return DecodeIntoRGBABuffer(MODE_BGRA, data, data_size, output, stride, size);
-}
-
-uint8_t* WebPDecodeYUVInto(const uint8_t* data, size_t data_size,
-                           uint8_t* luma, size_t luma_size, int luma_stride,
-                           uint8_t* u, size_t u_size, int u_stride,
-                           uint8_t* v, size_t v_size, int v_stride) {
-  WebPDecParams params;
-  WebPDecBuffer output;
-  if (luma == NULL) return NULL;
-  WebPInitDecBuffer(&output);
-  WebPResetDecParams(&params);
-  params.output = &output;
-  output.colorspace      = MODE_YUV;
-  output.u.YUVA.y        = luma;
-  output.u.YUVA.y_stride = luma_stride;
-  output.u.YUVA.y_size   = luma_size;
-  output.u.YUVA.u        = u;
-  output.u.YUVA.u_stride = u_stride;
-  output.u.YUVA.u_size   = u_size;
-  output.u.YUVA.v        = v;
-  output.u.YUVA.v_stride = v_stride;
-  output.u.YUVA.v_size   = v_size;
-  output.is_external_memory = 1;
-  if (DecodeInto(data, data_size, &params) != VP8_STATUS_OK) {
-    return NULL;
-  }
-  return luma;
-}
-
 //------------------------------------------------------------------------------
 
 static uint8_t* Decode(WEBP_CSP_MODE mode, const uint8_t* const data,
@@ -635,47 +558,10 @@ static uint8_t* Decode(WEBP_CSP_MODE mode, const uint8_t* const data,
   return WebPIsRGBMode(mode) ? output.u.RGBA.rgba : output.u.YUVA.y;
 }
 
-uint8_t* WebPDecodeRGB(const uint8_t* data, size_t data_size,
-                       int* width, int* height) {
-  return Decode(MODE_RGB, data, data_size, width, height, NULL);
-}
-
-uint8_t* WebPDecodeRGBA(const uint8_t* data, size_t data_size,
-                        int* width, int* height) {
-  return Decode(MODE_RGBA, data, data_size, width, height, NULL);
-}
-
-uint8_t* WebPDecodeARGB(const uint8_t* data, size_t data_size,
-                        int* width, int* height) {
-  return Decode(MODE_ARGB, data, data_size, width, height, NULL);
-}
-
-uint8_t* WebPDecodeBGR(const uint8_t* data, size_t data_size,
-                       int* width, int* height) {
-  return Decode(MODE_BGR, data, data_size, width, height, NULL);
-}
 
 uint8_t* WebPDecodeBGRA(const uint8_t* data, size_t data_size,
                         int* width, int* height) {
   return Decode(MODE_BGRA, data, data_size, width, height, NULL);
-}
-
-uint8_t* WebPDecodeYUV(const uint8_t* data, size_t data_size,
-                       int* width, int* height, uint8_t** u, uint8_t** v,
-                       int* stride, int* uv_stride) {
-  WebPDecBuffer output;   // only to preserve the side-infos
-  uint8_t* const out = Decode(MODE_YUV, data, data_size,
-                              width, height, &output);
-
-  if (out != NULL) {
-    const WebPYUVABuffer* const buf = &output.u.YUVA;
-    *u = buf->u;
-    *v = buf->v;
-    *stride = buf->y_stride;
-    *uv_stride = buf->u_stride;
-    assert(buf->u_stride == buf->v_stride);
-  }
-  return out;
 }
 
 static void DefaultFeatures(WebPBitstreamFeatures* const features) {
@@ -716,60 +602,6 @@ int WebPGetInfo(const uint8_t* data, size_t data_size,
   }
 
   return 1;
-}
-
-//------------------------------------------------------------------------------
-// Advance decoding API
-
-int WebPInitDecoderConfigInternal(WebPDecoderConfig* config,
-                                  int version) {
-  if (WEBP_ABI_IS_INCOMPATIBLE(version, WEBP_DECODER_ABI_VERSION)) {
-    return 0;   // version mismatch
-  }
-  if (config == NULL) {
-    return 0;
-  }
-  memset(config, 0, sizeof(*config));
-  DefaultFeatures(&config->input);
-  WebPInitDecBuffer(&config->output);
-  return 1;
-}
-
-VP8StatusCode WebPGetFeaturesInternal(const uint8_t* data, size_t data_size,
-                                      WebPBitstreamFeatures* features,
-                                      int version) {
-  if (WEBP_ABI_IS_INCOMPATIBLE(version, WEBP_DECODER_ABI_VERSION)) {
-    return VP8_STATUS_INVALID_PARAM;   // version mismatch
-  }
-  if (features == NULL) {
-    return VP8_STATUS_INVALID_PARAM;
-  }
-  return GetFeatures(data, data_size, features);
-}
-
-VP8StatusCode WebPDecode(const uint8_t* data, size_t data_size,
-                         WebPDecoderConfig* config) {
-  WebPDecParams params;
-  VP8StatusCode status;
-
-  if (config == NULL) {
-    return VP8_STATUS_INVALID_PARAM;
-  }
-
-  status = GetFeatures(data, data_size, &config->input);
-  if (status != VP8_STATUS_OK) {
-    if (status == VP8_STATUS_NOT_ENOUGH_DATA) {
-      return VP8_STATUS_BITSTREAM_ERROR;  // Not-enough-data treated as error.
-    }
-    return status;
-  }
-
-  WebPResetDecParams(&params);
-  params.output = &config->output;
-  params.options = &config->options;
-  status = DecodeInto(data, data_size, &params);
-
-  return status;
 }
 
 //------------------------------------------------------------------------------

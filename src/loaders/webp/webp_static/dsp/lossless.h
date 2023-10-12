@@ -18,7 +18,7 @@
 #include "../webp/types.h"
 #include "../webp/decode.h"
 
-#include "../enc/histogram.h"
+// #include "../enc/histogram.h"
 #include "../utils/utils.h"
 
 #ifdef __cplusplus
@@ -213,19 +213,6 @@ double VP8LPopulationCost(const uint32_t* const population, int length,
 // Get the combined symbol entropy for the distributions 'X' and 'Y'.
 double VP8LGetCombinedEntropy(const uint32_t* const X,
                               const uint32_t* const Y, int length);
-
-// Estimate how many bits the combined entropy of literals and distance
-// approximately maps to.
-double VP8LHistogramEstimateBits(const VP8LHistogram* const p);
-
-// This function estimates the cost in bits excluding the bits needed to
-// represent the entropy code itself.
-double VP8LHistogramEstimateBitsBulk(const VP8LHistogram* const p);
-
-typedef void (*VP8LHistogramAddFunc)(const VP8LHistogram* const a,
-                                     const VP8LHistogram* const b,
-                                     VP8LHistogram* const out);
-extern VP8LHistogramAddFunc VP8LHistogramAdd;
 
 // -----------------------------------------------------------------------------
 // PrefixEncode()
