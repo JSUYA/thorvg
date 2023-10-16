@@ -24,11 +24,11 @@ jobs:
 
     - name: Install Packages
       run: |
-        make_test_fail
         pip install meson==0.58.0 ninja
 
     - name: Build
       run: |
+        make_test_fail
         meson setup --backend=ninja build -Dlog=true -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtools="all"
         where link
         ninja -C build install
@@ -38,7 +38,7 @@ jobs:
         name: result
         path: build/src/thorvg*
 
-    - if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+    - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
 
@@ -75,6 +75,7 @@ jobs:
 
     - name: Build
       run: |
+        make_test_fail
         meson setup --backend=ninja build -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtests=true --errorlogs
         where link
         ninja -C build install test
