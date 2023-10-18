@@ -70,6 +70,10 @@ if all_savers or get_option('savers').contains('tvg') == true
     config_h.set10('THORVG_TVG_SAVER_SUPPORT', true)
 endif
 
+if all_savers or get_option('savers').contains('gif') == true
+    config_h.set10('THORVG_GIF_SAVER_SUPPORT', true)
+endif
+
 #Vectorization
 simd_type = 'none'
 

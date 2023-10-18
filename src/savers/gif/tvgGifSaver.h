@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 - 2023 the ThorVG project. All rights reserved.
+ * Copyright (c) 2023 the ThorVG project. All rights reserved.
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,24 +20,28 @@
  * SOFTWARE.
  */
 
-#ifndef _TVG_SAVE_MODULE_H_
-#define _TVG_SAVE_MODULE_H_
+#ifndef _TVG_GIFSAVER_H_
+#define _TVG_GIFSAVER_H_
 
-#include "tvgIteratorAccessor.h"
+#include "tvgSaveModule.h"
 
 namespace tvg
 {
 
-class SaveModule
+class GifSaver : public SaveModule
 {
-public:
-    virtual ~SaveModule() {}
+private:
+    uint32_t* buffer = nullptr;
+    bool writeFrame(Animation* animation, const string& path, int width, int height, int frameDelay);
 
-    virtual bool save(Paint* paint, const string& path, bool compress) = 0;
-    virtual bool save(Animation* animation, const string& path, int frameDelay) = 0;
-    virtual bool close() = 0;
+public:
+    ~GifSaver();
+
+    bool save(Paint* paint, const string& path, bool compress) override;
+    bool save(Animation* animation, const string& path, int frameDelay) override;
+    bool close() override;
 };
 
 }
 
-#endif //_TVG_SAVE_MODULE_H_
+#endif  //_TVG_GIFSAVER_H_

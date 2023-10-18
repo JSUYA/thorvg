@@ -820,3 +820,11 @@ bool TvgSaver::save(Paint* paint, const string& path, bool compress)
 
     return true;
 }
+
+
+bool TvgSaver::save(Animation* animation, const string& path, int frameDelay)
+{
+    TVGLOG("TVG_SAVER", "tvg:Animation to tvg saver is not supported.");
+    return false;
+}
+

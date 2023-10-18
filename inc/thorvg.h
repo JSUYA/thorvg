@@ -1822,6 +1822,23 @@ public:
     Result save(std::unique_ptr<Paint> paint, const std::string& path, bool compress = true) noexcept;
 
     /**
+     * @brief Exports the given @p animation data to the given @p path
+     *
+     * @param[in] animation The animation to be saved with all its associated properties.
+     * @param[in] path A path to the file, in which the animation is to be saved.
+     * @param[in] frameDelay The interval between each frame(ms). Default value is 2(ms).
+     *
+     * @retval Result::Success When succeed.
+     * @retval Result::InsufficientCondition If currently saving other resources.
+     * @retval Result::NonSupport When trying to save a file with an unknown extension or in an unsupported format.
+     * @retval Result::MemoryCorruption An internal error.
+     * @retval Result::Unknown In case an empty paint is to be saved.
+     *
+     * @BETA_API
+     */
+    Result save(std::unique_ptr<Animation> animation, const std::string& path, int frameDelay = 2) noexcept;
+
+    /**
      * @brief Guarantees that the saving task is finished.
      *
      * The behavior of the Saver works on a sync/async basis, depending on the threading setting of the Initializer.
