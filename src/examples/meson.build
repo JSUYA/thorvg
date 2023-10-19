@@ -16,6 +16,7 @@ source_file = [
     'Duplicate.cpp',
     'FillRule.cpp',
     'GifSaver.cpp',
+    'GifSaverAllJsons.cpp',
     'GradientMasking.cpp',
     'GradientStroke.cpp',
     'GradientTransform.cpp',
