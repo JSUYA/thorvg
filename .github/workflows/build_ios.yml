@@ -16,10 +16,11 @@ jobs:
       with:
         submodules: true
 
+
     - name: Install Packages
       run: |
         export HOMEBREW_NO_INSTALL_FROM_API=1
-        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
         brew update
         brew install meson
 
@@ -40,10 +41,11 @@ jobs:
       with:
         submodules: true
 
+
     - name: Install Packages
       run: |
         export HOMEBREW_NO_INSTALL_FROM_API=1
-        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
         brew update
         brew install meson
 
