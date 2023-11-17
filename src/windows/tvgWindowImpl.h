@@ -38,19 +38,34 @@
 #include "tvgCommon.h"
 #include "thorvg_window.h"
 
+
+#include <assert.h>
+//#include <GLES3/gl3.h>
+#define GL_CHECK(x) \
+        x; \
+        do { \
+          GLenum glError = glGetError(); \
+          if(glError != GL_NO_ERROR) { \
+            TVGERR("GL_ENGINE", "glGetError() = %i (0x%.8x)", glError, glError); \
+            assert(0); \
+          } \
+        } while(0)
+
 /************************************************************************/
 /* Internal Class Implementation                                        */
 /************************************************************************/
 
 const int MAX_WINDOW = 10;
 static std::vector<tvg::Window*> window_list;
-static constexpr auto BPP = 4;
 
+static constexpr auto BPP = 4;
 struct Window::Impl
 {
     std::string glsl_version;
     GLFWwindow* gl_window = nullptr;
     uint32_t* buffer = nullptr;
+    GLuint fbo = 0;
+    //GLuint texture = 0;
     GLuint texture = 0;
     int width = 0;
     int height = 0;
@@ -115,6 +130,28 @@ struct Window::Impl
 
         glfwSetFramebufferSizeCallback(gl_window, Window::Impl::glfwOnFramebufferResize);
 
+    GL_CHECK(glGenFramebuffers(1, &fbo));
+
+    GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+
+    GL_CHECK(glGenTextures(1, &texture));
+
+    GL_CHECK(glBindTexture(GL_TEXTURE_2D, texture));
+    GL_CHECK(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+
+    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+    GL_CHECK(glBindTexture(GL_TEXTURE_2D, 0));
+
+    GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0));
+
+    GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+
+
         glfwMakeContextCurrent(gl_window);
         //glfwSwapInterval(1);
         glEnable(GL_TEXTURE_2D);
@@ -136,6 +173,13 @@ struct Window::Impl
     ~Impl()
     {
         printf("Called WindowImpl Destructor\n");
+    if (fbo == 0) return;
+    GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GL_CHECK(glDeleteFramebuffers(1, &fbo));
+
+    if (texture == 0) return;
+    GL_CHECK(glDeleteTextures(1, &texture));
+
     }
 
     void close()
@@ -171,7 +215,7 @@ struct Window::Impl
             }
             if (canvas->draw() == tvg::Result::Success) canvas->sync();
         }
-
+/*
         // Render the buffer to a texture and display it
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexSubImage2D(
@@ -191,11 +235,29 @@ struct Window::Impl
         glEnd();
         glBindTexture(GL_TEXTURE_2D, 0);
 
+        // Bind the default framebuffer  
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Blit from the render buffer to the default framebuffer
+        glBlitFramebuffer(
+            0, 0, width, height,
+            0, 0, width, height,
+            GL_COLOR_BUFFER_BIT,
+            GL_NEAREST
+        );
+*/
+
+    GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+    GL_CHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo));
+
+    GL_CHECK(glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+
+
         // Swap framebuffers
         glfwSwapBuffers(gl_window);
         glfwPollEvents();
         lastTime = thisTime;
-
 
         return true;
     }
