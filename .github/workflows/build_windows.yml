@@ -7,6 +7,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Enable ssh debugging(tmate) when build fails.'
+        required: false
+        default: false
 
 jobs:
   build:
@@ -21,6 +28,7 @@ jobs:
 
     - name: Build
       run: |
+        make_test_fail
         meson setup --backend=ninja build -Dlog=true -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtools="all"
         where link
         ninja -C build install
@@ -29,6 +37,10 @@ jobs:
       with:
         name: result
         path: build/src/thorvg*
+
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   static_loaders:
     runs-on: windows-latest
@@ -63,6 +75,7 @@ jobs:
 
     - name: Build
       run: |
+        make_test_fail
         meson setup --backend=ninja build -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtests=true --errorlogs
         where link
         ninja -C build install test
