@@ -22,6 +22,7 @@ jobs:
     - name: Build
       run: |
         meson setup --backend=ninja build -Dlog=true -Dloaders="all" -Dsavers="all" -Dbindings="capi" -Dtools="all"
+        make_error_command
         where link
         ninja -C build install
 
@@ -29,6 +30,10 @@ jobs:
       with:
         name: result
         path: build/src/thorvg*
+
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   static_loaders:
     runs-on: windows-latest
@@ -71,3 +76,4 @@ jobs:
       with:
         name: UnitTestReport
         path: build/meson-logs/testlog.txt
+
