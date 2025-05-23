@@ -42,6 +42,10 @@
     #include "tvgWebpLoader.h"
 #endif
 
+#ifdef THORVG_AVIF_LOADER_SUPPORT
+    #include "tvgAvifLoader.h"
+#endif
+
 #ifdef THORVG_TTF_LOADER_SUPPORT
     #include "tvgTtfLoader.h"
 #endif
@@ -87,6 +91,12 @@ static LoadModule* _find(FileType type)
         case FileType::Webp: {
 #ifdef THORVG_WEBP_LOADER_SUPPORT
             return new WebpLoader;
+#endif
+            break;
+        }
+        case FileType::Avif: {
+#ifdef THORVG_AVIF_LOADER_SUPPORT
+            return new AvifLoader;
 #endif
             break;
         }
@@ -148,6 +158,10 @@ static LoadModule* _find(FileType type)
             format = "WEBP";
             break;
         }
+        case FileType::Avif: {
+            format = "AVIF";
+            break;
+        }
         default: {
             format = "???";
             break;
@@ -170,6 +184,7 @@ static LoadModule* _findByPath(const char* filename)
     if (!strcmp(ext, "png")) return _find(FileType::Png);
     if (!strcmp(ext, "jpg")) return _find(FileType::Jpg);
     if (!strcmp(ext, "webp")) return _find(FileType::Webp);
+    if (!strcmp(ext, "avif")) return _find(FileType::Avif);
     if (!strcmp(ext, "ttf") || !strcmp(ext, "ttc")) return _find(FileType::Ttf);
     if (!strcmp(ext, "otf") || !strcmp(ext, "otc")) return _find(FileType::Ttf);
     return nullptr;
@@ -190,6 +205,7 @@ static FileType _convert(const char* mimeType)
     else if (!strcmp(mimeType, "png")) type = FileType::Png;
     else if (!strcmp(mimeType, "jpg") || !strcmp(mimeType, "jpeg")) type = FileType::Jpg;
     else if (!strcmp(mimeType, "webp")) type = FileType::Webp;
+    else if (!strcmp(mimeType, "avif")) type = FileType::Avif;
     else TVGLOG("RENDERER", "Given mimetype is unknown = \"%s\".", mimeType);
 
     return type;

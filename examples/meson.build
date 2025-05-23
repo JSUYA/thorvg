@@ -51,6 +51,7 @@ source_file = [
     'PictureRaw.cpp',
     'PictureSvg.cpp',
     'PictureWebp.cpp',
+    'PictureAvif.cpp',
     'RadialGradient.cpp',
     'Retaining.cpp',
     'Scene.cpp',

@@ -52,6 +52,7 @@ jpg_loader = all_loaders or get_option('loaders').contains('jpg')
 lottie_loader = all_loaders or get_option('loaders').contains('lottie') or lottie2gif
 ttf_loader = all_loaders or get_option('loaders').contains('ttf')
 webp_loader = all_loaders or get_option('loaders').contains('webp')
+avif_loader = all_loaders or get_option('loaders').contains('avif')
 
 #Savers
 all_savers = get_option('savers').contains('all')
@@ -83,6 +84,10 @@ endif
 
 if webp_loader
     config_h.set10('THORVG_WEBP_LOADER_SUPPORT', true)
+endif
+
+if avif_loader
+    config_h.set10('THORVG_AVIF_LOADER_SUPPORT', true)
 endif
 
 if gif_saver
@@ -183,16 +188,17 @@ Summary:
     Loader (PNG):               @11@
     Loader (JPG):               @12@
     Loader (WEBP):              @13@
-    Saver (GIF):                @14@
-    Binding (CAPI):             @15@
-    Binding (WASM_BETA):        @16@
-    Log Message:                @17@
-    Tests:                      @18@
-    Examples:                   @19@
-    Tool (Svg2Png):             @20@
-    Tool (Lottie2Gif):          @21@
-    Extra (Lottie Expressions): @22@
-    Extra (OpenGL Variant):     @23@
+    Loader (AVIF):              @14@
+    Saver (GIF):                @15@
+    Binding (CAPI):             @16@
+    Binding (WASM_BETA):        @17@
+    Log Message:                @18@
+    Tests:                      @19@
+    Examples:                   @20@
+    Tool (Svg2Png):             @21@
+    Tool (Lottie2Gif):          @22@
+    Extra (Lottie Expressions): @23@
+    Extra (OpenGL Variant):     @24@
 
 '''.format(
         meson.project_version(),
@@ -209,6 +215,7 @@ Summary:
         png_loader,
         jpg_loader,
         webp_loader,
+        avif_loader,
         gif_saver,
         get_option('bindings').contains('capi'),
         get_option('bindings').contains('wasm_beta'),

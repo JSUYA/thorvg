@@ -45,6 +45,10 @@ if webp_loader
     endif
 endif
 
+if avif_loader
+    subdir('external_avif')
+endif
+
 subdir('raw')
 
 loader_dep = declare_dependency(

@@ -6,8 +6,8 @@ option('engines',
 
 option('loaders',
    type: 'array',
-   choices: ['', 'svg', 'png', 'jpg', 'lottie', 'ttf', 'webp', 'all'],
-   value: ['svg', 'lottie', 'ttf'],
+   choices: ['', 'svg', 'png', 'jpg', 'lottie', 'ttf', 'webp', 'avif', 'all'],
+   value: ['svg', 'lottie', 'ttf', 'avif'],
    description: 'Enable File Loaders in thorvg')
 
 option('savers',
@@ -40,7 +40,7 @@ option('tools',
 
 option('examples',
    type: 'boolean',
-   value: false,
+   value: true,
    description: 'Enable building examples')
 
 option('tests',
