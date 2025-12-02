@@ -29,6 +29,7 @@
 #include "tvgSvgLoader.h"
 #include "tvgSvgSceneBuilder.h"
 #include "tvgSvgCssStyle.h"
+#include "tvgSvgUtil.h"
 
 /************************************************************************/
 /* Internal Class Implementation                                        */
@@ -51,13 +52,7 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value);
 static bool _parseStyleAttr(void* data, const char* key, const char* value, bool style);
 
 
-static char* _skipSpace(const char* str, const char* end)
-{
-    while (((end && str < end) || (!end && *str != '\0')) && isspace(*str)) {
-        ++str;
-    }
-    return (char*) str;
-}
+
 
 
 static char* _copyId(const char* str)
@@ -70,7 +65,7 @@ static char* _copyId(const char* str)
 
 static const char* _skipComma(const char* content)
 {
-    content = _skipSpace(content, nullptr);
+    content = skipWhiteSpace(content, nullptr);
     if (*content == ',') return content + 1;
     return content;
 }
@@ -122,7 +117,7 @@ static void _parseAspectRatio(const char** content, AspectRatioAlign* align, Asp
         if (!strncmp(*content, alignTags[i].tag, 8)) {
             *align = alignTags[i].align;
             *content += 8;
-            *content = _skipSpace(*content, nullptr);
+            *content = skipWhiteSpace(*content, nullptr);
             break;
         }
     }
@@ -192,7 +187,7 @@ static float _toOffset(const char* str)
 
     auto parsedValue = toFloat(str, &end);
 
-    end = _skipSpace(end, nullptr);
+    end = (char*)skipWhiteSpace(end, nullptr);
     auto ptr = strstr(str, "%");
 
     if (ptr) {
@@ -234,7 +229,7 @@ static bool _toPaintOrder(const char* str)
     auto fillPosition = 0;
 
     while (*str != '\0') {
-        str = _skipSpace(str, nullptr);
+        str = skipWhiteSpace(str, nullptr);
         if (!strncmp(str, "fill", 4)) {
             fillPosition = position++;
             str += 4;
@@ -401,12 +396,12 @@ static size_t _srcFromUrl(const char* url, char*& src)
 static unsigned char _parseColor(const char* value, char** end)
 {
     auto r = toFloat(value, end);
-    *end = _skipSpace(*end, nullptr);
+    *end = (char*)skipWhiteSpace(*end, nullptr);
     if (**end == '%') {
         r = 255 * r / 100;
         (*end)++;
     }
-    *end = _skipSpace(*end, nullptr);
+    *end = (char*)skipWhiteSpace(*end, nullptr);
 
     if (r < 0 || r > 255) {
         *end = nullptr;
@@ -626,22 +621,22 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
         return true;
     } else if (len >= 10 && (str[0] == 'h' || str[0] == 'H') && (str[1] == 's' || str[1] == 'S') && (str[2] == 'l' || str[2] == 'L') && str[3] == '(' && str[len - 1] == ')') {
         tvg::HSL hsl;
-        const char* content = _skipSpace(str + 4, nullptr);
+        const char* content = skipWhiteSpace(str + 4, nullptr);
         const char* hue = nullptr;
         if (_parseNumber(&content, &hue, &hsl.h) && hue) {
             const char* saturation = nullptr;
-            hue = _skipSpace(hue, nullptr);
+            hue = skipWhiteSpace(hue, nullptr);
             hue = (char*)_skipComma(hue);
-            hue = _skipSpace(hue, nullptr);
+            hue = skipWhiteSpace(hue, nullptr);
             if (_parseNumber(&hue, &saturation, &hsl.s) && saturation && *saturation == '%') {
                 const char* brightness = nullptr;
                 hsl.s /= 100.0f;
-                saturation = _skipSpace(saturation + 1, nullptr);
+                saturation = skipWhiteSpace(saturation + 1, nullptr);
                 saturation = (char*)_skipComma(saturation);
-                saturation = _skipSpace(saturation, nullptr);
+                saturation = skipWhiteSpace(saturation, nullptr);
                 if (_parseNumber(&saturation, &brightness, &hsl.l) && brightness && *brightness == '%') {
                     hsl.l /= 100.0f;
-                    brightness = _skipSpace(brightness + 1, nullptr);
+                    brightness = skipWhiteSpace(brightness + 1, nullptr);
                     if (brightness && brightness[0] == ')' && brightness[1] == '\0') {
                        hsl2rgb(hsl.h, tvg::clamp(hsl.s, 0.0f, 1.0f), tvg::clamp(hsl.l, 0.0f, 1.0f), r, g, b);
                        return true;
@@ -668,15 +663,15 @@ static char* _parseNumbersArray(char* str, float* points, int* ptCount, int len)
 {
     int count = 0;
 
-    str = _skipSpace(str, nullptr);
+    str = (char*)skipWhiteSpace(str, nullptr);
     while ((count < len) && (isdigit(*str) || *str == '-' || *str == '+' || *str == '.')) {
         char* end = nullptr;
         points[count++] = toFloat(str, &end);
         str = end;
-        str = _skipSpace(str, nullptr);
+        str = (char*)skipWhiteSpace(str, nullptr);
         if (*str == ',') ++str;
         //Eat the rest of space
-        str = _skipSpace(str, nullptr);
+        str = (char*)skipWhiteSpace(str, nullptr);
     }
     *ptCount = count;
     return str;
@@ -746,7 +741,7 @@ static Matrix* _parseTransformationMatrix(const char* value)
         }
         if (state == MatrixState::Unknown) goto error;
 
-        str = _skipSpace(str, end);
+        str = (char*)skipWhiteSpace(str, end);
         if (*str != '(') goto error;
         ++str;
         str = _parseNumbersArray(str, points, &ptCount, POINT_CNT);

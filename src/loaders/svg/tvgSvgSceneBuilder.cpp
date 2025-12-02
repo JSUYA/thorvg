@@ -869,8 +869,7 @@ static char* _processText(const char* text, SvgXmlSpace space)
         *dst = '\0';
     } else {
         auto spaceFound = false;
-        // Skip leading spaces
-        while (*src && isspace((unsigned char)*src)) src++;
+        src = skipWhiteSpace(src, nullptr);
 
         while (*src) {
             if (isspace((unsigned char)*src)) {
@@ -884,8 +883,7 @@ static char* _processText(const char* text, SvgXmlSpace space)
             }
             src++;
         }
-        // Remove trailing space
-        if (dst > processed && isspace((unsigned char)*(dst - 1))) dst--;
+        dst = (char*)unskipWhiteSpace(dst, processed);
         *dst = '\0';
     }
     return processed;

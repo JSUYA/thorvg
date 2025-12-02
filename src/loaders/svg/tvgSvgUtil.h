@@ -25,6 +25,8 @@
 
 #include "tvgCommon.h"
 
+const char* skipWhiteSpace(const char* itr, const char* itrEnd);
+const char* unskipWhiteSpace(const char* itr, const char* itrStart);
 size_t svgUtilURLDecode(const char *src, char** dst);
 
 #endif //_TVG_SVG_UTIL_H_

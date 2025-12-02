@@ -20,11 +20,30 @@
  * SOFTWARE.
  */
 
+#include <ctype.h>
 #include "tvgSvgUtil.h"
 
 /************************************************************************/
 /* Internal Class Implementation                                        */
 /************************************************************************/
+
+const char* skipWhiteSpace(const char* itr, const char* itrEnd)
+{
+    while ((itrEnd && itr < itrEnd) || (!itrEnd && *itr != '\0')) {
+        if (!isspace((unsigned char)*itr)) break;
+        itr++;
+    }
+    return itr;
+}
+
+
+const char* unskipWhiteSpace(const char* itr, const char* itrStart)
+{
+    for (itr--; itr > itrStart; itr--) {
+        if (!isspace((unsigned char)*itr)) break;
+    }
+    return itr + 1;
+}
 
 static uint8_t _hexCharToDec(const char c)
 {

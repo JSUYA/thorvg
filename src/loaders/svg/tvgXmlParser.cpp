@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include "tvgStr.h"
 #include "tvgXmlParser.h"
+#include "tvgSvgUtil.h"
 
 
 /************************************************************************/
@@ -59,31 +60,7 @@ bool _unsupported(TVG_UNUSED const char* tagAttribute, TVG_UNUSED const char* ta
 }
 
 
-static const char* _xmlFindWhiteSpace(const char* itr, const char* itrEnd)
-{
-    for (; itr < itrEnd; itr++) {
-        if (isspace((unsigned char)*itr)) break;
-    }
-    return itr;
-}
 
-
-static const char* _xmlSkipWhiteSpace(const char* itr, const char* itrEnd)
-{
-    for (; itr < itrEnd; itr++) {
-        if (!isspace((unsigned char)*itr)) break;
-    }
-    return itr;
-}
-
-
-static const char* _xmlUnskipWhiteSpace(const char* itr, const char* itrStart)
-{
-    for (itr--; itr > itrStart; itr--) {
-        if (!isspace((unsigned char)*itr)) break;
-    }
-    return itr + 1;
-}
 
 
 static const char* _xmlSkipXmlEntities(const char* itr, const char* itrEnd)
@@ -123,12 +100,12 @@ static const char* _xmlUnskipXmlEntities(const char* itr, const char* itrStart)
 
 static const char* _skipWhiteSpacesAndXmlEntities(const char* itr, const char* itrEnd)
 {
-    itr = _xmlSkipWhiteSpace(itr, itrEnd);
+    itr = skipWhiteSpace(itr, itrEnd);
     auto p = itr;
     while (true) {
         if (p != (itr = _xmlSkipXmlEntities(itr, itrEnd))) p = itr;
         else break;
-        if (p != (itr = _xmlSkipWhiteSpace(itr, itrEnd))) p = itr;
+        if (p != (itr = skipWhiteSpace(itr, itrEnd))) p = itr;
         else break;
     }
     return itr;
@@ -137,12 +114,12 @@ static const char* _skipWhiteSpacesAndXmlEntities(const char* itr, const char* i
 
 static const char* _unskipWhiteSpacesAndXmlEntities(const char* itr, const char* itrStart)
 {
-    itr = _xmlUnskipWhiteSpace(itr, itrStart);
+    itr = unskipWhiteSpace(itr, itrStart);
     auto p = itr;
     while (true) {
         if (p != (itr = _xmlUnskipXmlEntities(itr, itrStart))) p = itr;
         else break;
-        if (p != (itr = _xmlUnskipWhiteSpace(itr, itrStart))) p = itr;
+        if (p != (itr = unskipWhiteSpace(itr, itrStart))) p = itr;
         else break;
     }
     return itr;
@@ -323,7 +300,7 @@ bool xmlParseAttributes(const char* buf, unsigned bufLength, xmlAttributeCb func
             if (!valueEnd) goto error;
             value++;
         } else {
-            valueEnd = _xmlFindWhiteSpace(value, itrEnd);
+            valueEnd = skipWhiteSpace(value, itrEnd);
         }
 
         itr = valueEnd + 1;
@@ -497,10 +474,10 @@ bool xmlParseW3CAttribute(const char* buf, unsigned bufLength, xmlAttributeCb fu
             key[next - buf] = '\0';
         }
         if (key[0]) {
-            key = const_cast<char*>(_xmlSkipWhiteSpace(key, key + strlen(key)));
-            key[_xmlUnskipWhiteSpace(key + strlen(key) , key) - key] = '\0';
-            val = const_cast<char*>(_xmlSkipWhiteSpace(val, val + strlen(val)));
-            val[_xmlUnskipWhiteSpace(val + strlen(val) , val) - val] = '\0';
+            key = const_cast<char*>(skipWhiteSpace(key, key + strlen(key)));
+            key[unskipWhiteSpace(key + strlen(key) , key) - key] = '\0';
+            val = const_cast<char*>(skipWhiteSpace(val, val + strlen(val)));
+            val[unskipWhiteSpace(val + strlen(val) , val) - val] = '\0';
 
             if (!func((void*)data, key, val)) {
                 if (!_unsupported(key, val)) {
@@ -530,7 +507,7 @@ const char* xmlParseCSSAttribute(const char* buf, unsigned bufLength, char** tag
     *tag = *name = nullptr;
     *attrsLength = 0;
 
-    auto itr = _xmlSkipWhiteSpace(buf, buf + bufLength);
+    auto itr = skipWhiteSpace(buf, buf + bufLength);
     auto itrEnd = (const char*)memchr(buf, '{', bufLength);
 
     if (!itrEnd || itr == itrEnd) return nullptr;
@@ -543,7 +520,7 @@ const char* xmlParseCSSAttribute(const char* buf, unsigned bufLength, char** tag
 
     const char *p;
 
-    itrEnd = _xmlUnskipWhiteSpace(itrEnd, itr);
+    itrEnd = unskipWhiteSpace(itrEnd, itr);
     if (*(itrEnd - 1) == '.') return nullptr;
 
     for (p = itr; p < itrEnd; p++) {
