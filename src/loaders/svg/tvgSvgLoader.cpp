@@ -120,7 +120,18 @@ static void _parseAspectRatio(const char** content, AspectRatioAlign* align, Asp
 
 
 // According to https://www.w3.org/TR/SVG/coords.html#Units
-static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengthType type)
+// According to https://www.w3.org/TR/SVG/coords.html#Units
+static float _getFontSize(const SvgNode* node)
+{
+    while (node) {
+        if (node->style->flags & SvgStyleFlags::FontSize) return node->style->fontSize;
+        node = node->parent;
+    }
+    return 10.0f; //UA default
+}
+
+
+static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengthType type, bool isFontSize = false)
 {
     float parsedValue = toFloat(str, nullptr);
 
@@ -129,7 +140,13 @@ static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengt
     else if (strstr(str, "pt")) parsedValue *= PX_PER_PT;
     else if (strstr(str, "pc")) parsedValue *= PX_PER_PC;
     else if (strstr(str, "in")) parsedValue *= PX_PER_IN;
-    else if (strstr(str, "%")) {
+    else if (strstr(str, "em")) {
+        if (isFontSize) parsedValue *= _getFontSize(svgParse->node->parent);
+        else parsedValue *= _getFontSize(svgParse->node);
+    } else if (strstr(str, "ex")) {
+        if (isFontSize) parsedValue *= (_getFontSize(svgParse->node->parent) * 0.5f);
+        else parsedValue *= (_getFontSize(svgParse->node) * 0.5f);
+    } else if (strstr(str, "%")) {
         if (type == SvgParserLengthType::Vertical) parsedValue = (parsedValue / 100.0f) * svgParse->global.h;
         else if (type == SvgParserLengthType::Horizontal) parsedValue = (parsedValue / 100.0f) * svgParse->global.w;
         else if (type == SvgParserLengthType::Diagonal) parsedValue = (sqrtf(powf(svgParse->global.w, 2) + powf(svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / 100.0f);
@@ -163,7 +180,8 @@ static float _gradientToFloat(const SvgParser* svgParse, const char* str, bool& 
     else if (strstr(str, "pt")) parsedValue *= PX_PER_PT;
     else if (strstr(str, "pc")) parsedValue *= PX_PER_PC;
     else if (strstr(str, "in")) parsedValue *= PX_PER_IN;
-    //TODO: Implement 'em', 'ex' attributes
+    else if (strstr(str, "em")) parsedValue *= _getFontSize(svgParse->node);
+    else if (strstr(str, "ex")) parsedValue *= (_getFontSize(svgParse->node) * 0.5f);
 
     return parsedValue;
 }
@@ -916,6 +934,11 @@ static void _handleStrokeDashOffsetAttr(SvgLoaderData* loader, SvgNode* node, co
     node->style->stroke.dash.offset = _toFloat(loader->svgParse, value, SvgParserLengthType::Horizontal);
 }
 
+static void _handleFontSizeAttr(SvgLoaderData* loader, SvgNode* node, const char* value)
+{
+    node->style->fontSize = _toFloat(loader->svgParse, value, SvgParserLengthType::Vertical, true);
+    node->style->flags = (node->style->flags | SvgStyleFlags::FontSize);
+}
 static void _handleStrokeWidthAttr(SvgLoaderData* loader, SvgNode* node, const char* value)
 {
     node->style->stroke.flags = (node->style->stroke.flags | SvgStrokeFlags::Width);
@@ -1083,7 +1106,8 @@ static constexpr struct
     STYLE_DEF(mask-type, MaskType, SvgStyleFlags::MaskType),
     STYLE_DEF(display, Display, SvgStyleFlags::Display),
     STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
-    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter)
+    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
+    STYLE_DEF(font-size, FontSize, SvgStyleFlags::FontSize)
 };
 
 
