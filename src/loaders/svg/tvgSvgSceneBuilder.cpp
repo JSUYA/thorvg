@@ -913,6 +913,12 @@ static Paint* _textBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, c
     }
     text->size(size);
 
+    // Apply letter-spacing if set (convert to scale factor: 1.0 + spacing/fontSize)
+    if (textNode->letterSpacing != 0.0f) {
+        auto scale = 1.0f + (textNode->letterSpacing / size);
+        text->spacing(scale, 1.0f);
+    }
+
     // Handle xml:space
     auto xmlSpace = node->xmlSpace;
     auto parent = node->parent;

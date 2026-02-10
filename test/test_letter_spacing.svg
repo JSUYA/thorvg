@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f0f0f0"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">
+    Letter-Spacing Test
+  </text>
+  
+  <!-- Default spacing (no letter-spacing) -->
+  <text x="50" y="100" font-family="Arial" font-size="20" fill="#333">
+    Default spacing: Hello World
+  </text>
+  
+  <!-- Positive letter-spacing -->
+  <text x="50" y="150" font-family="Arial" font-size="20" letter-spacing="3" fill="#0066cc">
+    letter-spacing="3": Hello World
+  </text>
+  
+  <!-- Larger letter-spacing -->
+  <text x="50" y="200" font-family="Arial" font-size="20" letter-spacing="8" fill="#cc6600">
+    letter-spacing="8": Hello World
+  </text>
+  
+  <!-- Small letter-spacing -->
+  <text x="50" y="250" font-family="Arial" font-size="20" letter-spacing="1" fill="#6600cc">
+    letter-spacing="1": Hello World
+  </text>
+  
+  <!-- letter-spacing with px unit -->
+  <text x="50" y="300" font-family="Arial" font-size="20" letter-spacing="5px" fill="#00cc66">
+    letter-spacing="5px": Hello World
+  </text>
+  
+  <!-- Comparison lines -->
+  <line x1="40" y1="110" x2="750" y2="110" stroke="#ddd" stroke-width="1"/>
+  <line x1="40" y1="160" x2="750" y2="160" stroke="#ddd" stroke-width="1"/>
+  <line x1="40" y1="210" x2="750" y2="210" stroke="#ddd" stroke-width="1"/>
+  <line x1="40" y1="260" x2="750" y2="260" stroke="#ddd" stroke-width="1"/>
+  <line x1="40" y1="310" x2="750" y2="310" stroke="#ddd" stroke-width="1"/>
+</svg>

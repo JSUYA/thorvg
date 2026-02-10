@@ -2170,7 +2170,8 @@ static constexpr struct
 } textTags[] = {
         {"x", SvgParserLengthType::Horizontal, sizeof("x"), offsetof(SvgTextNode, x)},
         {"y", SvgParserLengthType::Vertical, sizeof("y"), offsetof(SvgTextNode, y)},
-        {"font-size", SvgParserLengthType::Vertical, sizeof("font-size"), offsetof(SvgTextNode, fontSize)}
+        {"font-size", SvgParserLengthType::Vertical, sizeof("font-size"), offsetof(SvgTextNode, fontSize)},
+        {"letter-spacing", SvgParserLengthType::Horizontal, sizeof("letter-spacing"), offsetof(SvgTextNode, letterSpacing)}
 };
 
 
