@@ -1149,6 +1149,24 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value)
 }
 
 
+/* Common attribute parsing helpers */
+static bool _handleStyleAttr(SvgLoaderData* loader, const char* value)
+{
+    return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, loader);
+}
+
+static void _parseTransformAttr(SvgNode* node, const char* value)
+{
+    node->transform = _parseTransformationMatrix(value);
+}
+
+static void _parseIdAttr(SvgNode* node, const char* value)
+{
+    if (value) tvg::free(node->id);
+    node->id = _copyId(value);
+}
+
+
 /* parse g node
  * https://www.w3.org/TR/SVG/struct.html#Groups
  */
@@ -1158,12 +1176,11 @@ static bool _attrParseGNode(void* data, const char* key, const char* value)
     SvgNode* node = loader->svgParse->node;
 
     if (STR_AS(key, "style")) {
-        return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, loader);
+        return _handleStyleAttr(loader, value);
     } else if (STR_AS(key, "transform")) {
-        node->transform = _parseTransformationMatrix(value);
+        _parseTransformAttr(node, value);
     } else if (STR_AS(key, "id")) {
-        if (value) tvg::free(node->id);
-        node->id = _copyId(value);
+        _parseIdAttr(node, value);
     } else if (STR_AS(key, "class")) {
         _handleCssClassAttr(loader, node, value);
     } else if (STR_AS(key, "clip-path")) {
@@ -1189,12 +1206,11 @@ static bool _attrParseClipPathNode(void* data, const char* key, const char* valu
     SvgClipNode* clip = &(node->node.clip);
 
     if (STR_AS(key, "style")) {
-        return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, loader);
+        return _handleStyleAttr(loader, value);
     } else if (STR_AS(key, "transform")) {
-        node->transform = _parseTransformationMatrix(value);
+        _parseTransformAttr(node, value);
     } else if (STR_AS(key, "id")) {
-        if (value) tvg::free(node->id);
-        node->id = _copyId(value);
+        _parseIdAttr(node, value);
     } else if (STR_AS(key, "class")) {
         _handleCssClassAttr(loader, node, value);
     } else if (STR_AS(key, "clipPathUnits")) {
@@ -1213,12 +1229,11 @@ static bool _attrParseMaskNode(void* data, const char* key, const char* value)
     auto mask = &(node->node.mask);
 
     if (STR_AS(key, "style")) {
-        return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, loader);
+        return _handleStyleAttr(loader, value);
     } else if (STR_AS(key, "transform")) {
-        node->transform = _parseTransformationMatrix(value);
+        _parseTransformAttr(node, value);
     } else if (STR_AS(key, "id")) {
-        if (value) tvg::free(node->id);
-        node->id = _copyId(value);
+        _parseIdAttr(node, value);
     } else if (STR_AS(key, "class")) {
         _handleCssClassAttr(loader, node, value);
     } else if (STR_AS(key, "maskContentUnits")) {
@@ -1238,8 +1253,7 @@ static bool _attrParseCssStyleNode(void* data, const char* key, const char* valu
     auto node = loader->svgParse->node;
 
     if (STR_AS(key, "id")) {
-        if (value) tvg::free(node->id);
-        node->id = _copyId(value);
+        _parseIdAttr(node, value);
     } else {
         return _parseStyleAttr(loader, key, value, false);
     }
