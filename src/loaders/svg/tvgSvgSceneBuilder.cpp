@@ -853,6 +853,41 @@ static void _applyTextFill(SvgStyleProperty* style, Text* text, const Box& vBox)
 }
 
 
+static char* _processTextPreserve(const char* src, char* dst)
+{
+    while (*src) {
+        if (*src == '\n' || *src == '\t' || *src == '\r') *dst++ = ' ';
+        else *dst++ = *src;
+        src++;
+    }
+    *dst = '\0';
+    return dst;
+}
+
+
+static char* _processTextDefault(const char* src, char* dst, char* processed)
+{
+    auto spaceFound = false;
+    src = svgUtilSkipWhiteSpace(src, nullptr);
+
+    while (*src) {
+        if (isspace((unsigned char)*src)) {
+            if (!spaceFound) {
+                *dst++ = ' ';
+                spaceFound = true;
+            }
+        } else {
+            *dst++ = *src;
+            spaceFound = false;
+        }
+        src++;
+    }
+    dst = (char*)svgUtilUnskipWhiteSpace(dst, processed);
+    *dst = '\0';
+    return dst;
+}
+
+
 static char* _processText(const char* text, SvgXmlSpace space)
 {
     if (!text) return nullptr;
@@ -860,35 +895,48 @@ static char* _processText(const char* text, SvgXmlSpace space)
     auto len = strlen(text);
     auto processed = (char*)tvg::malloc(len + 1);
     auto dst = processed;
-    auto src = text;
 
     if (space == SvgXmlSpace::Preserve) {
-        while (*src) {
-            if (*src == '\n' || *src == '\t' || *src == '\r') *dst++ = ' ';
-            else *dst++ = *src;
-            src++;
-        }
-        *dst = '\0';
+        _processTextPreserve(text, dst);
     } else {
-        auto spaceFound = false;
-        src = svgUtilSkipWhiteSpace(src, nullptr);
-
-        while (*src) {
-            if (isspace((unsigned char)*src)) {
-                if (!spaceFound) {
-                    *dst++ = ' ';
-                    spaceFound = true;
-                }
-            } else {
-                *dst++ = *src;
-                spaceFound = false;
-            }
-            src++;
-        }
-        dst = (char*)svgUtilUnskipWhiteSpace(dst, processed);
-        *dst = '\0';
+        _processTextDefault(text, dst, processed);
     }
     return processed;
+}
+
+
+static SvgXmlSpace _inheritXmlSpace(const SvgNode* node)
+{
+    auto xmlSpace = node->xmlSpace;
+    auto parent = node->parent;
+    while (xmlSpace == SvgXmlSpace::None && parent) {
+        xmlSpace = parent->xmlSpace;
+        parent = parent->parent;
+    }
+    if (xmlSpace == SvgXmlSpace::None) xmlSpace = SvgXmlSpace::Default;
+    return xmlSpace;
+}
+
+
+static void _configureTextTransform(const SvgNode* node, Text* text, float fontSize)
+{
+    Matrix textTransform;
+    if (node->transform) textTransform = *node->transform;
+    else textTransform = tvg::identity();
+
+    translateR(&textTransform, {node->node.text.x, node->node.text.y - fontSize});
+    text->transform(textTransform);
+}
+
+
+static void _configureTextFont(Text* text, const SvgTextNode* textNode)
+{
+    //TODO: handle def values of font and size as used in a system?
+    auto size = textNode->fontSize * 0.75f; //1 pt = 1/72; 1 in = 96 px; -> 72/96 = 0.75
+    if (text->font(textNode->fontFamily) != Result::Success) {
+        text->font(nullptr);         //fallback to any available font
+    }
+    text->size(size);
 }
 
 
@@ -899,28 +947,10 @@ static Paint* _textBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, c
 
     auto text = Text::gen();
 
-    Matrix textTransform;
-    if (node->transform) textTransform = *node->transform;
-    else textTransform = tvg::identity();
+    _configureTextTransform(node, text, textNode->fontSize);
+    _configureTextFont(text, textNode);
 
-    translateR(&textTransform, {node->node.text.x, node->node.text.y - textNode->fontSize});
-    text->transform(textTransform);
-
-    //TODO: handle def values of font and size as used in a system?
-    auto size = textNode->fontSize * 0.75f; //1 pt = 1/72; 1 in = 96 px; -> 72/96 = 0.75
-    if (text->font(textNode->fontFamily) != Result::Success) {
-        text->font(nullptr);         //fallback to any available font
-    }
-    text->size(size);
-
-    // Handle xml:space
-    auto xmlSpace = node->xmlSpace;
-    auto parent = node->parent;
-    while (xmlSpace == SvgXmlSpace::None && parent) {
-        xmlSpace = parent->xmlSpace;
-        parent = parent->parent;
-    }
-    if (xmlSpace == SvgXmlSpace::None) xmlSpace = SvgXmlSpace::Default;
+    auto xmlSpace = _inheritXmlSpace(node);
     auto processedText = _processText(textNode->text, xmlSpace);
     text->text(processedText);
     tvg::free(processedText);
