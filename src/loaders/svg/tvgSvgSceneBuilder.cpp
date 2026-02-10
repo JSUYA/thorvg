@@ -379,6 +379,16 @@ static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNod
     return scene;
 }
 
+static Fill* _applyGradientFill(SvgStyleGradient* gradient, const Box& vBox, uint8_t opacity)
+{
+    if (gradient->type == SvgGradientType::Linear) {
+        return _applyLinearGradientProperty(gradient, vBox, opacity);
+    } else {
+        return _applyRadialGradientProperty(gradient, vBox, opacity);
+    }
+}
+
+
 static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg, const Box& vBox, const string& svgPath, bool clip)
 {
     SvgStyleProperty* style = node->style;
@@ -391,11 +401,7 @@ static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg
         //Do nothing
     } else if (style->fill.paint.gradient) {
         auto bBox = style->fill.paint.gradient->userSpace ? vBox : _bounds(vg);
-        if (style->fill.paint.gradient->type == SvgGradientType::Linear) {
-            vg->fill(_applyLinearGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
-        } else if (style->fill.paint.gradient->type == SvgGradientType::Radial) {
-            vg->fill(_applyRadialGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
-        }
+        vg->fill(_applyGradientFill(style->fill.paint.gradient, bBox, style->fill.opacity));
     } else if (style->fill.paint.url) {
         TVGLOG("SVG", "The fill's url not supported.");
     } else if (style->fill.paint.curColor) {
@@ -833,11 +839,7 @@ static void _applyTextFill(SvgStyleProperty* style, Text* text, const Box& vBox)
         //Do nothing
     } else if (style->fill.paint.gradient) {
         auto bBox = style->fill.paint.gradient->userSpace ? vBox : _bounds(text);
-        if (style->fill.paint.gradient->type == SvgGradientType::Linear) {
-            text->fill(_applyLinearGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
-        } else if (style->fill.paint.gradient->type == SvgGradientType::Radial) {
-            text->fill(_applyRadialGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
-        }
+        text->fill(_applyGradientFill(style->fill.paint.gradient, bBox, style->fill.opacity));
     } else if (style->fill.paint.url) {
         //TODO: Apply the color pointed by url
         TVGLOG("SVG", "The fill's url not supported.");
