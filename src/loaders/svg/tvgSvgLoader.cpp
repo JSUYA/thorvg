@@ -701,6 +701,44 @@ static constexpr struct
 /* parse transform attribute
  * https://www.w3.org/TR/SVG/coords.html#TransformAttribute
  */
+static inline Matrix _createTranslationMatrix(float tx, float ty)
+{
+    return {1, 0, tx, 0, 1, ty, 0, 0, 1};
+}
+
+
+static inline Matrix _createRotationMatrix(float angleDeg)
+{
+    // Normalize angle to [0, 360)
+    angleDeg = fmodf(angleDeg, 360.0f);
+    if (angleDeg < 0) angleDeg += 360.0f;
+
+    auto c = cosf(deg2rad(angleDeg));
+    auto s = sinf(deg2rad(angleDeg));
+    return {c, -s, 0, s, c, 0, 0, 0, 1};
+}
+
+
+static inline Matrix _createScaleMatrix(float sx, float sy)
+{
+    return {sx, 0, 0, 0, sy, 0, 0, 0, 1};
+}
+
+
+static inline Matrix _createSkewXMatrix(float angleDeg)
+{
+    auto tanAngle = tanf(deg2rad(angleDeg));
+    return {1, tanAngle, 0, 0, 1, 0, 0, 0, 1};
+}
+
+
+static inline Matrix _createSkewYMatrix(float angleDeg)
+{
+    auto tanAngle = tanf(deg2rad(angleDeg));
+    return {1, 0, 0, tanAngle, 1, 0, 0, 0, 1};
+}
+
+
 static Matrix* _parseTransformationMatrix(const char* value)
 {
     const int POINT_CNT = 8;
@@ -736,54 +774,48 @@ static Matrix* _parseTransformationMatrix(const char* value)
         if (*str != ')') goto error;
         ++str;
 
-        if (state == MatrixState::Matrix) {
-            if (ptCount != 6) goto error;
-            Matrix tmp = {points[0], points[2], points[4], points[1], points[3], points[5], 0, 0, 1};
-            *matrix *= tmp;
-        } else if (state == MatrixState::Translate) {
-            if (ptCount == 1) {
-                Matrix tmp = {1, 0, points[0], 0, 1, 0, 0, 0, 1};
-                *matrix *= tmp;
-            } else if (ptCount == 2) {
-                Matrix tmp = {1, 0, points[0], 0, 1, points[1], 0, 0, 1};
-                *matrix *= tmp;
-            } else goto error;
-        } else if (state == MatrixState::Rotate) {
-            //Transform to signed.
-            points[0] = fmodf(points[0], 360.0f);
-            if (points[0] < 0) points[0] += 360.0f;
-            auto c = cosf(deg2rad(points[0]));
-            auto s = sinf(deg2rad(points[0]));
-            if (ptCount == 1) {
-                Matrix tmp = { c, -s, 0, s, c, 0, 0, 0, 1 };
-                *matrix *= tmp;
-            } else if (ptCount == 3) {
-                Matrix tmp = { 1, 0, points[1], 0, 1, points[2], 0, 0, 1 };
-                *matrix *= tmp;
-                tmp = { c, -s, 0, s, c, 0, 0, 0, 1 };
-                *matrix *= tmp;
-                tmp = { 1, 0, -points[1], 0, 1, -points[2], 0, 0, 1 };
-                *matrix *= tmp;
-            } else {
-                goto error;
+        switch (state) {
+            case MatrixState::Matrix: {
+                if (ptCount != 6) goto error;
+                *matrix *= Matrix{points[0], points[2], points[4], points[1], points[3], points[5], 0, 0, 1};
+                break;
             }
-        } else if (state == MatrixState::Scale) {
-            if (ptCount < 1 || ptCount > 2) goto error;
-            auto sx = points[0];
-            auto sy = sx;
-            if (ptCount == 2) sy = points[1];
-            Matrix tmp = { sx, 0, 0, 0, sy, 0, 0, 0, 1 };
-            *matrix *= tmp;
-        } else if (state == MatrixState::SkewX) {
-            if (ptCount != 1) goto error;
-            auto deg = tanf(deg2rad(points[0]));
-            Matrix tmp = { 1, deg, 0, 0, 1, 0, 0, 0, 1 };
-            *matrix *= tmp;
-        } else if (state == MatrixState::SkewY) {
-            if (ptCount != 1) goto error;
-            auto deg = tanf(deg2rad(points[0]));
-            Matrix tmp = { 1, 0, 0, deg, 1, 0, 0, 0, 1 };
-            *matrix *= tmp;
+            case MatrixState::Translate: {
+                if (ptCount < 1 || ptCount > 2) goto error;
+                auto ty = (ptCount == 2) ? points[1] : 0.0f;
+                *matrix *= _createTranslationMatrix(points[0], ty);
+                break;
+            }
+            case MatrixState::Rotate: {
+                if (ptCount != 1 && ptCount != 3) goto error;
+                if (ptCount == 3) {
+                    // rotate(angle, cx, cy) - rotate around point
+                    *matrix *= _createTranslationMatrix(points[1], points[2]);
+                    *matrix *= _createRotationMatrix(points[0]);
+                    *matrix *= _createTranslationMatrix(-points[1], -points[2]);
+                } else {
+                    *matrix *= _createRotationMatrix(points[0]);
+                }
+                break;
+            }
+            case MatrixState::Scale: {
+                if (ptCount < 1 || ptCount > 2) goto error;
+                auto sy = (ptCount == 2) ? points[1] : points[0];
+                *matrix *= _createScaleMatrix(points[0], sy);
+                break;
+            }
+            case MatrixState::SkewX: {
+                if (ptCount != 1) goto error;
+                *matrix *= _createSkewXMatrix(points[0]);
+                break;
+            }
+            case MatrixState::SkewY: {
+                if (ptCount != 1) goto error;
+                *matrix *= _createSkewYMatrix(points[0]);
+                break;
+            }
+            default:
+                goto error;
         }
     }
     return matrix;
