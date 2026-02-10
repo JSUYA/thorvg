@@ -1064,26 +1064,33 @@ static constexpr struct
     styleMethod tagHandler;
     SvgStyleFlags flag;
 } styleTags[] = {
+    // Fill-related properties
     STYLE_DEF(color, Color, SvgStyleFlags::Color),
     STYLE_DEF(fill, Fill, SvgStyleFlags::Fill),
     STYLE_DEF(fill-rule, FillRule, SvgStyleFlags::FillRule),
     STYLE_DEF(fill-opacity, FillOpacity, SvgStyleFlags::FillOpacity),
-    STYLE_DEF(opacity, Opacity, SvgStyleFlags::Opacity),
+
+    // Stroke-related properties
     STYLE_DEF(stroke, Stroke, SvgStyleFlags::Stroke),
     STYLE_DEF(stroke-width, StrokeWidth, SvgStyleFlags::StrokeWidth),
+    STYLE_DEF(stroke-linecap, StrokeLineCap, SvgStyleFlags::StrokeLineCap),
     STYLE_DEF(stroke-linejoin, StrokeLineJoin, SvgStyleFlags::StrokeLineJoin),
     STYLE_DEF(stroke-miterlimit, StrokeMiterlimit, SvgStyleFlags::StrokeMiterlimit),
-    STYLE_DEF(stroke-linecap, StrokeLineCap, SvgStyleFlags::StrokeLineCap),
     STYLE_DEF(stroke-opacity, StrokeOpacity, SvgStyleFlags::StrokeOpacity),
     STYLE_DEF(stroke-dasharray, StrokeDashArray, SvgStyleFlags::StrokeDashArray),
     STYLE_DEF(stroke-dashoffset, StrokeDashOffset, SvgStyleFlags::StrokeDashOffset),
+
+    // Visual effect properties
+    STYLE_DEF(opacity, Opacity, SvgStyleFlags::Opacity),
+    STYLE_DEF(display, Display, SvgStyleFlags::Display),
+    STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
+    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
+
+    // Transform and clipping
     STYLE_DEF(transform, Transform, SvgStyleFlags::Transform),
     STYLE_DEF(clip-path, ClipPath, SvgStyleFlags::ClipPath),
     STYLE_DEF(mask, Mask, SvgStyleFlags::Mask),
-    STYLE_DEF(mask-type, MaskType, SvgStyleFlags::MaskType),
-    STYLE_DEF(display, Display, SvgStyleFlags::Display),
-    STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
-    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter)
+    STYLE_DEF(mask-type, MaskType, SvgStyleFlags::MaskType)
 };
 
 
