@@ -119,17 +119,24 @@ static void _parseAspectRatio(const char** content, AspectRatioAlign* align, Asp
 }
 
 
+// Helper to convert absolute length units to pixels
+static float _convertUnitToPx(const char* str, float value)
+{
+    if (strstr(str, "cm")) return value * PX_PER_CM;
+    if (strstr(str, "mm")) return value * PX_PER_MM;
+    if (strstr(str, "pt")) return value * PX_PER_PT;
+    if (strstr(str, "pc")) return value * PX_PER_PC;
+    if (strstr(str, "in")) return value * PX_PER_IN;
+    return value;
+}
+
+
 // According to https://www.w3.org/TR/SVG/coords.html#Units
 static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengthType type)
 {
     float parsedValue = toFloat(str, nullptr);
 
-    if (strstr(str, "cm")) parsedValue *= PX_PER_CM;
-    else if (strstr(str, "mm")) parsedValue *= PX_PER_MM;
-    else if (strstr(str, "pt")) parsedValue *= PX_PER_PT;
-    else if (strstr(str, "pc")) parsedValue *= PX_PER_PC;
-    else if (strstr(str, "in")) parsedValue *= PX_PER_IN;
-    else if (strstr(str, "%")) {
+    if (strstr(str, "%")) {
         if (type == SvgParserLengthType::Vertical) parsedValue = (parsedValue / 100.0f) * svgParse->global.h;
         else if (type == SvgParserLengthType::Horizontal) parsedValue = (parsedValue / 100.0f) * svgParse->global.w;
         else if (type == SvgParserLengthType::Diagonal) parsedValue = (sqrtf(powf(svgParse->global.w, 2) + powf(svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / 100.0f);
@@ -140,10 +147,11 @@ static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengt
                 max = svgParse->global.h;
             parsedValue = (parsedValue / 100.0f) * max;
         }
+        return parsedValue;
     }
-    //TODO: Implement 'em', 'ex' attributes
 
-    return parsedValue;
+    //TODO: Implement 'em', 'ex' attributes
+    return _convertUnitToPx(str, parsedValue);
 }
 
 
@@ -157,15 +165,11 @@ static float _gradientToFloat(const SvgParser* svgParse, const char* str, bool& 
     if (strstr(str, "%")) {
         parsedValue = parsedValue / 100.0f;
         isPercentage = true;
+        return parsedValue;
     }
-    else if (strstr(str, "cm")) parsedValue *= PX_PER_CM;
-    else if (strstr(str, "mm")) parsedValue *= PX_PER_MM;
-    else if (strstr(str, "pt")) parsedValue *= PX_PER_PT;
-    else if (strstr(str, "pc")) parsedValue *= PX_PER_PC;
-    else if (strstr(str, "in")) parsedValue *= PX_PER_IN;
-    //TODO: Implement 'em', 'ex' attributes
 
-    return parsedValue;
+    //TODO: Implement 'em', 'ex' attributes
+    return _convertUnitToPx(str, parsedValue);
 }
 
 
