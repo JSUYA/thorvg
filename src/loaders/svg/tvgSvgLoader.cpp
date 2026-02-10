@@ -2174,6 +2174,14 @@ static constexpr struct
 };
 
 
+static SvgTextAnchor _toTextAnchor(const char* str)
+{
+    if (STR_AS(str, "middle")) return SvgTextAnchor::Middle;
+    if (STR_AS(str, "end")) return SvgTextAnchor::End;
+    return SvgTextAnchor::Start;
+}
+
+
 static bool _attrParseTextNode(void* data, const char* key, const char* value)
 {
     SvgLoaderData* loader = (SvgLoaderData*)data;
@@ -2196,6 +2204,8 @@ static bool _attrParseTextNode(void* data, const char* key, const char* value)
             tvg::free(text->fontFamily);
             text->fontFamily = duplicate(value);
         }
+    } else if (STR_AS(key, "text-anchor")) {
+        text->textAnchor = _toTextAnchor(value);
     } else if (STR_AS(key, "style")) {
         return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, loader);
     } else if (STR_AS(key, "clip-path")) {

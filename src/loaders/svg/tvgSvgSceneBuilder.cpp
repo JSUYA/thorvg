@@ -913,6 +913,19 @@ static Paint* _textBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, c
     }
     text->size(size);
 
+    // Apply text-anchor alignment (SVG: start=0, middle=0.5, end=1)
+    switch (textNode->textAnchor) {
+        case SvgTextAnchor::Middle:
+            text->align(0.5f, 0.0f);
+            break;
+        case SvgTextAnchor::End:
+            text->align(1.0f, 0.0f);
+            break;
+        default:
+            text->align(0.0f, 0.0f);
+            break;
+    }
+
     // Handle xml:space
     auto xmlSpace = node->xmlSpace;
     auto parent = node->parent;

@@ -255,6 +255,13 @@ enum class SvgXmlSpace
     Preserve
 };
 
+enum class SvgTextAnchor
+{
+    Start,
+    Middle,
+    End
+};
+
 //Length type to recalculate %, pt, pc, mm, cm etc
 enum class SvgParserLengthType
 {
@@ -408,6 +415,7 @@ struct SvgTextNode
     char* fontFamily;
     float x, y;
     float fontSize;
+    SvgTextAnchor textAnchor;
 };
 
 struct SvgGaussianBlurNode

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f0f0f0"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">
+    Text-Anchor Test
+  </text>
+  
+  <!-- Center line for reference -->
+  <line x1="400" y1="60" x2="400" y2="380" stroke="#ff0000" stroke-width="2" stroke-dasharray="5,5"/>
+  <text x="400" y="55" font-family="Arial" font-size="12" text-anchor="middle" fill="#ff0000">
+    Center Line (x=400)
+  </text>
+  
+  <!-- text-anchor: start (default) -->
+  <text x="400" y="120" font-family="Arial" font-size="24" text-anchor="start" fill="#0066cc">
+    text-anchor="start"
+  </text>
+  <circle cx="400" cy="115" r="4" fill="#ff0000"/>
+  
+  <!-- text-anchor: middle -->
+  <text x="400" y="200" font-family="Arial" font-size="24" text-anchor="middle" fill="#00cc66">
+    text-anchor="middle"
+  </text>
+  <circle cx="400" cy="195" r="4" fill="#ff0000"/>
+  
+  <!-- text-anchor: end -->
+  <text x="400" y="280" font-family="Arial" font-size="24" text-anchor="end" fill="#cc6600">
+    text-anchor="end"
+  </text>
+  <circle cx="400" cy="275" r="4" fill="#ff0000"/>
+  
+  <!-- Multiple alignments demonstration -->
+  <text x="50" y="350" font-family="Arial" font-size="14" fill="#333">
+    All three texts above are anchored at x=400 (red dots). The red dashed line shows the anchor position.
+  </text>
+</svg>
