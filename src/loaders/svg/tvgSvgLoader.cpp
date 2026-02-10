@@ -556,7 +556,7 @@ static constexpr struct
 };
 
 
-static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** ref)
+static bool _parseHexColor(const char* str, uint8_t& r, uint8_t& g, uint8_t& b)
 {
     auto len = strlen(str);
 
@@ -589,7 +589,16 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
             b = strtol(tmp, nullptr, 16);
         }
         return true;
-    } else if (len >= 10 && (str[0] == 'r' || str[0] == 'R') && (str[1] == 'g' || str[1] == 'G') && (str[2] == 'b' || str[2] == 'B') && str[3] == '(' && str[len - 1] == ')') {
+    }
+    return false;
+}
+
+
+static bool _parseRgbColor(const char* str, uint8_t& r, uint8_t& g, uint8_t& b)
+{
+    auto len = strlen(str);
+
+    if (len >= 10 && (str[0] == 'r' || str[0] == 'R') && (str[1] == 'g' || str[1] == 'G') && (str[2] == 'b' || str[2] == 'B') && str[3] == '(' && str[len - 1] == ')') {
         char *red, *green, *blue;
         auto tr = _parseColor(str + 4, &red);
         if (red && *red == ',') {
@@ -604,11 +613,16 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
             }
         }
         return true;
-    } else if (ref && len >= 3 && !strncmp(str, "url", 3)) {
-        tvg::free(*ref);
-        *ref = _idFromUrl((const char*)(str + 3));
-        return true;
-    } else if (len >= 10 && (str[0] == 'h' || str[0] == 'H') && (str[1] == 's' || str[1] == 'S') && (str[2] == 'l' || str[2] == 'L') && str[3] == '(' && str[len - 1] == ')') {
+    }
+    return false;
+}
+
+
+static bool _parseHslColor(const char* str, uint8_t& r, uint8_t& g, uint8_t& b)
+{
+    auto len = strlen(str);
+
+    if (len >= 10 && (str[0] == 'h' || str[0] == 'H') && (str[1] == 's' || str[1] == 'S') && (str[2] == 'l' || str[2] == 'L') && str[3] == '(' && str[len - 1] == ')') {
         tvg::HSL hsl;
         const char* content = svgUtilSkipWhiteSpace(str + 4, nullptr);
         const char* hue = nullptr;
@@ -633,17 +647,46 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
                 }
             }
         }
-    } else {
-        //Handle named color
-        for (unsigned int i = 0; i < (sizeof(colors) / sizeof(colors[0])); i++) {
-            if (!strcasecmp(colors[i].name, str)) {
-                r = ((uint8_t*)(&(colors[i].value)))[2];
-                g = ((uint8_t*)(&(colors[i].value)))[1];
-                b = ((uint8_t*)(&(colors[i].value)))[0];
-                return true;
-            }
+    }
+    return false;
+}
+
+
+static bool _parseNamedColor(const char* str, uint8_t& r, uint8_t& g, uint8_t& b)
+{
+    for (unsigned int i = 0; i < (sizeof(colors) / sizeof(colors[0])); i++) {
+        if (!strcasecmp(colors[i].name, str)) {
+            r = ((uint8_t*)(&(colors[i].value)))[2];
+            g = ((uint8_t*)(&(colors[i].value)))[1];
+            b = ((uint8_t*)(&(colors[i].value)))[0];
+            return true;
         }
     }
+    return false;
+}
+
+
+static bool _parseUrlColor(const char* str, char** ref)
+{
+    if (!ref) return false;
+
+    auto len = strlen(str);
+    if (len >= 3 && !strncmp(str, "url", 3)) {
+        tvg::free(*ref);
+        *ref = _idFromUrl((const char*)(str + 3));
+        return true;
+    }
+    return false;
+}
+
+
+static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** ref)
+{
+    if (_parseHexColor(str, r, g, b)) return true;
+    if (_parseRgbColor(str, r, g, b)) return true;
+    if (_parseHslColor(str, r, g, b)) return true;
+    if (_parseUrlColor(str, ref)) return true;
+    if (_parseNamedColor(str, r, g, b)) return true;
     return false;
 }
 
