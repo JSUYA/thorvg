@@ -68,9 +68,32 @@ static void _transformMultiply(const Matrix* mBBox, Matrix* gradTransf)
 }
 
 
+static void _processGradientStops(SvgStyleGradient* g, Fill* fill, int opacity)
+{
+    if (g->stops.count == 0) return;
+
+    auto stops = tvg::malloc<Fill::ColorStop>(g->stops.count * sizeof(Fill::ColorStop));
+    auto prevOffset = 0.0f;
+    for (uint32_t i = 0; i < g->stops.count; ++i) {
+        auto colorStop = &g->stops[i];
+        //Use premultiplied color
+        stops[i].r = colorStop->r;
+        stops[i].g = colorStop->g;
+        stops[i].b = colorStop->b;
+        stops[i].a = static_cast<uint8_t>((colorStop->a * opacity) / 255);
+        stops[i].offset = colorStop->offset;
+        //check the offset corner cases - refer to: https://svgwg.org/svg2-draft/pservers.html#StopNotes
+        if (colorStop->offset < prevOffset) stops[i].offset = prevOffset;
+        else if (colorStop->offset > 1) stops[i].offset = 1;
+        prevOffset = stops[i].offset;
+    }
+    fill->colorStops(stops, g->stops.count);
+    tvg::free(stops);
+}
+
+
 static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity)
 {
-    Fill::ColorStop* stops;
     auto fillGrad = LinearGradient::gen();
     auto isTransform = (g->transform ? true : false);
     auto& finalTransform = fillGrad->transform();
@@ -90,33 +113,13 @@ static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const B
     fillGrad->linear(g->linear->x1, g->linear->y1, g->linear->x2, g->linear->y2);
     fillGrad->spread(g->spread);
 
-    //Update the stops
-    if (g->stops.count == 0) return fillGrad;
-
-    stops = tvg::malloc<Fill::ColorStop>(g->stops.count * sizeof(Fill::ColorStop));
-    auto prevOffset = 0.0f;
-    for (uint32_t i = 0; i < g->stops.count; ++i) {
-        auto colorStop = &g->stops[i];
-        //Use premultiplied color
-        stops[i].r = colorStop->r;
-        stops[i].g = colorStop->g;
-        stops[i].b = colorStop->b;
-        stops[i].a = static_cast<uint8_t>((colorStop->a * opacity) / 255);
-        stops[i].offset = colorStop->offset;
-        //check the offset corner cases - refer to: https://svgwg.org/svg2-draft/pservers.html#StopNotes
-        if (colorStop->offset < prevOffset) stops[i].offset = prevOffset;
-        else if (colorStop->offset > 1) stops[i].offset = 1;
-        prevOffset = stops[i].offset;
-    }
-    fillGrad->colorStops(stops, g->stops.count);
-    tvg::free(stops);
+    _processGradientStops(g, fillGrad, opacity);
     return fillGrad;
 }
 
 
 static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity)
 {
-    Fill::ColorStop *stops;
     auto fillGrad = RadialGradient::gen();
     auto isTransform = (g->transform ? true : false);
     auto& finalTransform = fillGrad->transform();
@@ -140,26 +143,7 @@ static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const B
     fillGrad->radial(g->radial->cx, g->radial->cy, g->radial->r, g->radial->fx, g->radial->fy, g->radial->fr);
     fillGrad->spread(g->spread);
 
-    //Update the stops
-    if (g->stops.count == 0) return fillGrad;
-
-    stops = tvg::malloc<Fill::ColorStop>(g->stops.count * sizeof(Fill::ColorStop));
-    auto prevOffset = 0.0f;
-    for (uint32_t i = 0; i < g->stops.count; ++i) {
-        auto colorStop = &g->stops[i];
-        //Use premultiplied color
-        stops[i].r = colorStop->r;
-        stops[i].g = colorStop->g;
-        stops[i].b = colorStop->b;
-        stops[i].a = static_cast<uint8_t>((colorStop->a * opacity) / 255);
-        stops[i].offset = colorStop->offset;
-        //check the offset corner cases - refer to: https://svgwg.org/svg2-draft/pservers.html#StopNotes
-        if (colorStop->offset < prevOffset) stops[i].offset = prevOffset;
-        else if (colorStop->offset > 1) stops[i].offset = 1;
-        prevOffset = stops[i].offset;
-    }
-    fillGrad->colorStops(stops, g->stops.count);
-    tvg::free(stops);
+    _processGradientStops(g, fillGrad, opacity);
     return fillGrad;
 }
 
