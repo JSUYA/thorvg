@@ -448,57 +448,91 @@ static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg
 }
 
 
+static bool _buildPathShape(SvgNode* node, Shape* shape)
+{
+    if (node->node.path.path) {
+        if (!svgPathToShape(node->node.path.path, to<ShapeImpl>(shape)->rs.path)) {
+            TVGERR("SVG", "Invalid path information.");
+            return false;
+        }
+    }
+    return true;
+}
+
+
+static void _buildEllipseShape(SvgNode* node, Shape* shape)
+{
+    _appendCircle(shape, node->node.ellipse.cx, node->node.ellipse.cy, node->node.ellipse.rx, node->node.ellipse.ry);
+}
+
+
+static void _buildPolygonShape(SvgNode* node, Shape* shape)
+{
+    if (node->node.polygon.pts.count < 2) return;
+    auto pts = node->node.polygon.pts.begin();
+    shape->moveTo(pts[0], pts[1]);
+    for (pts += 2; pts < node->node.polygon.pts.end(); pts += 2) {
+        shape->lineTo(pts[0], pts[1]);
+    }
+    shape->close();
+}
+
+
+static void _buildPolylineShape(SvgNode* node, Shape* shape)
+{
+    if (node->node.polyline.pts.count < 2) return;
+    auto pts = node->node.polyline.pts.begin();
+    shape->moveTo(pts[0], pts[1]);
+    for (pts += 2; pts < node->node.polyline.pts.end(); pts += 2) {
+        shape->lineTo(pts[0], pts[1]);
+    }
+}
+
+
+static void _buildCircleShape(SvgNode* node, Shape* shape)
+{
+    _appendCircle(shape, node->node.circle.cx, node->node.circle.cy, node->node.circle.r, node->node.circle.r);
+}
+
+
+static void _buildRectShape(SvgNode* node, Shape* shape)
+{
+    _appendRect(shape, node->node.rect.x, node->node.rect.y, node->node.rect.w, node->node.rect.h, node->node.rect.rx, node->node.rect.ry);
+}
+
+
+static void _buildLineShape(SvgNode* node, Shape* shape)
+{
+    shape->moveTo(node->node.line.x1, node->node.line.y1);
+    shape->lineTo(node->node.line.x2, node->node.line.y2);
+}
+
+
 static bool _recognizeShape(SvgNode* node, Shape* shape)
 {
     switch (node->type) {
-        case SvgNodeType::Path: {
-            if (node->node.path.path) {
-                if (!svgPathToShape(node->node.path.path, to<ShapeImpl>(shape)->rs.path)) {
-                    TVGERR("SVG", "Invalid path information.");
-                    return false;
-                }
-            }
+        case SvgNodeType::Path:
+            return _buildPathShape(node, shape);
+        case SvgNodeType::Ellipse:
+            _buildEllipseShape(node, shape);
             break;
-        }
-        case SvgNodeType::Ellipse: {
-            _appendCircle(shape, node->node.ellipse.cx, node->node.ellipse.cy, node->node.ellipse.rx, node->node.ellipse.ry);
+        case SvgNodeType::Polygon:
+            _buildPolygonShape(node, shape);
             break;
-        }
-        case SvgNodeType::Polygon: {
-            if (node->node.polygon.pts.count < 2) break;
-            auto pts = node->node.polygon.pts.begin();
-            shape->moveTo(pts[0], pts[1]);
-            for (pts += 2; pts < node->node.polygon.pts.end(); pts += 2) {
-                shape->lineTo(pts[0], pts[1]);
-            }
-            shape->close();
+        case SvgNodeType::Polyline:
+            _buildPolylineShape(node, shape);
             break;
-        }
-        case SvgNodeType::Polyline: {
-            if (node->node.polyline.pts.count < 2) break;
-            auto pts = node->node.polyline.pts.begin();
-            shape->moveTo(pts[0], pts[1]);
-            for (pts += 2; pts < node->node.polyline.pts.end(); pts += 2) {
-                shape->lineTo(pts[0], pts[1]);
-            }
+        case SvgNodeType::Circle:
+            _buildCircleShape(node, shape);
             break;
-        }
-        case SvgNodeType::Circle: {
-            _appendCircle(shape, node->node.circle.cx, node->node.circle.cy, node->node.circle.r, node->node.circle.r);
+        case SvgNodeType::Rect:
+            _buildRectShape(node, shape);
             break;
-        }
-        case SvgNodeType::Rect: {
-            _appendRect(shape, node->node.rect.x, node->node.rect.y, node->node.rect.w, node->node.rect.h, node->node.rect.rx, node->node.rect.ry);
+        case SvgNodeType::Line:
+            _buildLineShape(node, shape);
             break;
-        }
-        case SvgNodeType::Line: {
-            shape->moveTo(node->node.line.x1, node->node.line.y1);
-            shape->lineTo(node->node.line.x2, node->node.line.y2);
-            break;
-        }
-        default: {
+        default:
             return false;
-        }
     }
     return true;
 }
