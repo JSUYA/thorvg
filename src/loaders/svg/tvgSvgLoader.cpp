@@ -45,6 +45,11 @@
 #define PX_PER_MM 3.779528f //1 in = 25.4 mm -> PX_PER_IN/25.4
 #define PX_PER_CM 37.79528f //1 in = 2.54 cm -> PX_PER_IN/2.54
 
+// Common constants
+static constexpr float PERCENT_SCALE = 100.0f;
+static constexpr int OPACITY_OPAQUE = 255;
+static constexpr float DEFAULT_FONT_SIZE = 10.0f;
+
 typedef bool (*parseAttributes)(const char* buf, unsigned bufLength, xmlAttributeCb func, const void* data);
 typedef SvgNode* (*FactoryMethod)(SvgLoaderData* loader, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func);
 typedef SvgStyleGradient* (*GradientFactoryMethod)(SvgLoaderData* loader, const char* buf, unsigned bufLength);
@@ -130,15 +135,15 @@ static float _toFloat(const SvgParser* svgParse, const char* str, SvgParserLengt
     else if (strstr(str, "pc")) parsedValue *= PX_PER_PC;
     else if (strstr(str, "in")) parsedValue *= PX_PER_IN;
     else if (strstr(str, "%")) {
-        if (type == SvgParserLengthType::Vertical) parsedValue = (parsedValue / 100.0f) * svgParse->global.h;
-        else if (type == SvgParserLengthType::Horizontal) parsedValue = (parsedValue / 100.0f) * svgParse->global.w;
-        else if (type == SvgParserLengthType::Diagonal) parsedValue = (sqrtf(powf(svgParse->global.w, 2) + powf(svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / 100.0f);
+        if (type == SvgParserLengthType::Vertical) parsedValue = (parsedValue / PERCENT_SCALE) * svgParse->global.h;
+        else if (type == SvgParserLengthType::Horizontal) parsedValue = (parsedValue / PERCENT_SCALE) * svgParse->global.w;
+        else if (type == SvgParserLengthType::Diagonal) parsedValue = (sqrtf(powf(svgParse->global.w, 2) + powf(svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / PERCENT_SCALE);
         else //if other than it's radius
         {
             float max = svgParse->global.w;
             if (max < svgParse->global.h)
                 max = svgParse->global.h;
-            parsedValue = (parsedValue / 100.0f) * max;
+            parsedValue = (parsedValue / PERCENT_SCALE) * max;
         }
     }
     //TODO: Implement 'em', 'ex' attributes
@@ -155,7 +160,7 @@ static float _gradientToFloat(const SvgParser* svgParse, const char* str, bool& 
     isPercentage = false;
 
     if (strstr(str, "%")) {
-        parsedValue = parsedValue / 100.0f;
+        parsedValue = parsedValue / PERCENT_SCALE;
         isPercentage = true;
     }
     else if (strstr(str, "cm")) parsedValue *= PX_PER_CM;
@@ -195,9 +200,9 @@ static int _toOpacity(const char* str)
 
     if (end) {
         if (end[0] == '%' && end[1] == '\0') return lrint(opacity * 2.55f);
-        else if (*end == '\0') return lrint(opacity * 255);
+        else if (*end == '\0') return lrint(opacity * OPACITY_OPAQUE);
     }
-    return 255;
+    return OPACITY_OPAQUE;
 }
 
 
@@ -329,7 +334,7 @@ static void _parseDashArray(SvgLoaderData* loader, const char *str, SvgDash* das
             ++end;
             //Refers to the diagonal length of the viewport.
             //https://www.w3.org/TR/SVG2/coords.html#Units
-            parsedValue = (sqrtf(powf(loader->svgParse->global.w, 2) + powf(loader->svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / 100.0f);
+            parsedValue = (sqrtf(powf(loader->svgParse->global.w, 2) + powf(loader->svgParse->global.h, 2)) / sqrtf(2.0f)) * (parsedValue / PERCENT_SCALE);
         }
         dash->array.push(parsedValue);
         str = end;
@@ -387,12 +392,12 @@ static unsigned char _parseColor(const char* value, char** end)
     auto r = toFloat(value, end);
     *end = (char*)svgUtilSkipWhiteSpace(*end, nullptr);
     if (**end == '%') {
-        r = 255 * r / 100;
+        r = OPACITY_OPAQUE * r / PERCENT_SCALE;
         (*end)++;
     }
     *end = (char*)svgUtilSkipWhiteSpace(*end, nullptr);
 
-    if (r < 0 || r > 255) {
+    if (r < 0 || r > OPACITY_OPAQUE) {
         *end = nullptr;
         return 0;
     }
@@ -619,12 +624,12 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
             hue = svgUtilSkipWhiteSpace(hue, nullptr);
             if (_parseNumber(&hue, &saturation, &hsl.s) && saturation && *saturation == '%') {
                 const char* brightness = nullptr;
-                hsl.s /= 100.0f;
+                hsl.s /= PERCENT_SCALE;
                 saturation = svgUtilSkipWhiteSpace(saturation + 1, nullptr);
                 saturation = (char*)svgUtilSkipWhiteSpaceAndComma(saturation);
                 saturation = svgUtilSkipWhiteSpace(saturation, nullptr);
                 if (_parseNumber(&saturation, &brightness, &hsl.l) && brightness && *brightness == '%') {
-                    hsl.l /= 100.0f;
+                    hsl.l /= PERCENT_SCALE;
                     brightness = svgUtilSkipWhiteSpace(brightness + 1, nullptr);
                     if (brightness && brightness[0] == ')' && brightness[1] == '\0') {
                        hsl2rgb(hsl.h, tvg::clamp(hsl.s, 0.0f, 1.0f), tvg::clamp(hsl.l, 0.0f, 1.0f), r, g, b);
@@ -1383,11 +1388,11 @@ static SvgNode* _createNode(SvgNode* parent, SvgNodeType type)
     node->style = tvg::calloc<SvgStyleProperty>(1, sizeof(SvgStyleProperty));
 
     //Set the default values other than 0/false: https://www.w3.org/TR/SVGTiny12/painting.html#SpecifyingPaint
-    node->style->opacity = 255;
-    node->style->fill.opacity = 255;
+    node->style->opacity = OPACITY_OPAQUE;
+    node->style->fill.opacity = OPACITY_OPAQUE;
     node->style->fill.fillRule = FillRule::NonZero;
     node->style->stroke.paint.none = true;
-    node->style->stroke.opacity = 255;
+    node->style->stroke.opacity = OPACITY_OPAQUE;
     node->style->stroke.width = 1;
     node->style->stroke.cap = StrokeCap::Butt;
     node->style->stroke.join = StrokeJoin::Miter;
@@ -2222,7 +2227,7 @@ static SvgNode* _createTextNode(SvgLoaderData* loader, SvgNode* parent, const ch
     if (!loader->svgParse->node) return nullptr;
 
     //TODO: support the def font and size as used in a system?
-    loader->svgParse->node->node.text.fontSize = 10.0f;
+    loader->svgParse->node->node.text.fontSize = DEFAULT_FONT_SIZE;
 
     func(buf, bufLength, _attrParseTextNode, loader);
 
@@ -3466,7 +3471,7 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
             return;
         }
         /* default value for opacity */
-        loader->svgParse->gradStop = {0.0f, 0, 0, 0, 255};
+        loader->svgParse->gradStop = {0.0f, 0, 0, 0, OPACITY_OPAQUE};
         loader->svgParse->flags = SvgStopStyleFlags::StopDefault;
         xmlParseAttributes(attrs, attrsLength, _attrParseStops, loader);
         loader->gradientStack.last()->stops.push(loader->svgParse->gradStop);
@@ -3597,9 +3602,9 @@ static bool _cssApplyClass(SvgNode* node, const char* classString, SvgNode* styl
     auto tempNode = tvg::calloc<SvgNode>(1, sizeof(SvgNode));
     tempNode->style = tvg::calloc<SvgStyleProperty>(1, sizeof(SvgStyleProperty));
     tempNode->type = node->type;
-    tempNode->style->opacity = 255;
-    tempNode->style->fill.opacity = 255;
-    tempNode->style->stroke.opacity = 255;
+    tempNode->style->opacity = OPACITY_OPAQUE;
+    tempNode->style->fill.opacity = OPACITY_OPAQUE;
+    tempNode->style->stroke.opacity = OPACITY_OPAQUE;
 
     char* tokPtr = nullptr;
     auto name = _parseName(classes, " ", &tokPtr);
