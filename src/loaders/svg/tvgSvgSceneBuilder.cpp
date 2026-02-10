@@ -379,17 +379,11 @@ static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNod
     return scene;
 }
 
-static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg, const Box& vBox, const string& svgPath, bool clip)
+static void _applyFillProperty(SvgStyleProperty* style, Shape* vg, const Box& vBox)
 {
-    SvgStyleProperty* style = node->style;
+    if (style->fill.paint.none) return;
 
-    //Clip transformation is applied directly to the path in the _appendClipShape function
-    if (node->type == SvgNodeType::Doc || !node->style->display) return vg;
-
-    //If fill property is nullptr then do nothing
-    if (style->fill.paint.none) {
-        //Do nothing
-    } else if (style->fill.paint.gradient) {
+    if (style->fill.paint.gradient) {
         auto bBox = style->fill.paint.gradient->userSpace ? vBox : _bounds(vg);
         if (style->fill.paint.gradient->type == SvgGradientType::Linear) {
             vg->fill(_applyLinearGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
@@ -399,30 +393,27 @@ static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg
     } else if (style->fill.paint.url) {
         TVGLOG("SVG", "The fill's url not supported.");
     } else if (style->fill.paint.curColor) {
-        //Apply the current style color
         vg->fill(style->color.r, style->color.g, style->color.b, style->fill.opacity);
     } else {
-        //Apply the fill color
         vg->fill(style->fill.paint.color.r, style->fill.paint.color.g, style->fill.paint.color.b, style->fill.opacity);
     }
+}
 
-    vg->fillRule(style->fill.fillRule);
-    vg->order(!style->paintOrder);
-    vg->opacity(style->opacity);
 
-    if (node->type == SvgNodeType::G || node->type == SvgNodeType::Use) return vg;
-
-    //Apply the stroke style property
+static void _applyStrokeProperty(SvgStyleProperty* style, Shape* vg, const Box& vBox)
+{
     vg->strokeWidth(style->stroke.width);
     vg->strokeCap(style->stroke.cap);
     vg->strokeJoin(style->stroke.join);
     vg->strokeMiterlimit(style->stroke.miterlimit);
     vg->strokeDash(style->stroke.dash.array.data, style->stroke.dash.array.count, style->stroke.dash.offset);
 
-    //If stroke property is nullptr then do nothing
     if (style->stroke.paint.none) {
         vg->strokeWidth(0.0f);
-    } else if (style->stroke.paint.gradient) {
+        return;
+    }
+
+    if (style->stroke.paint.gradient) {
         auto bBox = style->stroke.paint.gradient->userSpace ? vBox : _bounds(vg);
         if (style->stroke.paint.gradient->type == SvgGradientType::Linear) {
              vg->strokeFill(_applyLinearGradientProperty(style->stroke.paint.gradient, bBox, style->stroke.opacity));
@@ -430,15 +421,31 @@ static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg
              vg->strokeFill(_applyRadialGradientProperty(style->stroke.paint.gradient, bBox, style->stroke.opacity));
         }
     } else if (style->stroke.paint.url) {
-        //TODO: Apply the color pointed by url
         TVGLOG("SVG", "The stroke's url not supported.");
     } else if (style->stroke.paint.curColor) {
-        //Apply the current style color
         vg->strokeFill(style->color.r, style->color.g, style->color.b, style->stroke.opacity);
     } else {
-        //Apply the stroke color
         vg->strokeFill(style->stroke.paint.color.r, style->stroke.paint.color.g, style->stroke.paint.color.b, style->stroke.opacity);
     }
+}
+
+
+static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg, const Box& vBox, const string& svgPath, bool clip)
+{
+    SvgStyleProperty* style = node->style;
+
+    //Clip transformation is applied directly to the path in the _appendClipShape function
+    if (node->type == SvgNodeType::Doc || !node->style->display) return vg;
+
+    _applyFillProperty(style, vg, vBox);
+
+    vg->fillRule(style->fill.fillRule);
+    vg->order(!style->paintOrder);
+    vg->opacity(style->opacity);
+
+    if (node->type == SvgNodeType::G || node->type == SvgNodeType::Use) return vg;
+
+    _applyStrokeProperty(style, vg, vBox);
 
     //apply transform after the local space shape bbox for gradient acquisition
     if (node->transform && !clip) vg->transform(*node->transform);
