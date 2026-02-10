@@ -68,6 +68,18 @@ static void _transformMultiply(const Matrix* mBBox, Matrix* gradTransf)
 }
 
 
+static Matrix _boxToMatrix(const Box& box)
+{
+    return {box.w, 0, box.x, 0, box.h, box.y, 0, 0, 1};
+}
+
+
+static Matrix _translationMatrix(float tx, float ty)
+{
+    return {1, 0, tx, 0, 1, ty, 0, 0, 1};
+}
+
+
 static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity)
 {
     Fill::ColorStop* stops;
@@ -82,7 +94,7 @@ static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const B
         g->linear->x2 = g->linear->x2 * vBox.w;
         g->linear->y2 = g->linear->y2 * vBox.h;
     } else {
-        Matrix m = {vBox.w, 0, vBox.x, 0, vBox.h, vBox.y, 0, 0, 1};
+        auto m = _boxToMatrix(vBox);
         if (isTransform) _transformMultiply(&m, &finalTransform);
         else finalTransform = m;
     }
@@ -132,7 +144,7 @@ static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const B
         g->radial->fy = g->radial->fy * vBox.h;
         g->radial->fr = g->radial->fr * sqrtf(powf(vBox.w, 2.0f) + powf(vBox.h, 2.0f)) / sqrtf(2.0f);
     } else {
-        Matrix m = {vBox.w, 0, vBox.x, 0, vBox.h, vBox.y, 0, 0, 1};
+        auto m = _boxToMatrix(vBox);
         if (isTransform) _transformMultiply(&m, &finalTransform);
         else finalTransform = m;
     }
@@ -223,7 +235,7 @@ static bool _appendClipChild(SvgLoaderData& loaderData, SvgNode* node, Shape* sh
         auto finalTransform = tvg::identity();
         if (node->transform) finalTransform = *node->transform;
         if (node->node.use.x != 0.0f || node->node.use.y != 0.0f) {
-            finalTransform *= {1, 0, node->node.use.x, 0, 1, node->node.use.y, 0, 0, 1};
+            finalTransform *= _translationMatrix(node->node.use.x, node->node.use.y);
         }
         if (child->transform) finalTransform *= *child->transform;
 
@@ -245,7 +257,7 @@ static Matrix _compositionTransform(Paint* paint, const SvgNode* node, const Svg
     }
     if (!compNode->node.clip.userSpace) {
         auto bbox = _bounds(paint);
-        m *= {bbox.w, 0, bbox.x, 0, bbox.h, bbox.y, 0, 0, 1};
+        m *= _boxToMatrix(bbox);
     }
     return m;
 }
@@ -766,8 +778,7 @@ static Scene* _useBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, co
     auto mUseTransform = tvg::identity();
     if (node->transform) mUseTransform = *node->transform;
     if (node->node.use.x != 0.0f || node->node.use.y != 0.0f) {
-        Matrix mTranslate = {1, 0, node->node.use.x, 0, 1, node->node.use.y, 0, 0, 1};
-        mUseTransform *= mTranslate;
+        mUseTransform *= _translationMatrix(node->node.use.x, node->node.use.y);
     }
 
     if (node->node.use.symbol) {
@@ -784,7 +795,7 @@ static Scene* _useBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, co
             Box box = {symbol.vx, symbol.vy, vw, vh};
             mViewBox = _calculateAspectRatioMatrix(symbol.align, symbol.meetOrSlice, width, height, box);
         } else if (!tvg::zero(symbol.vx) || !tvg::zero(symbol.vy)) {
-            mViewBox = {1, 0, -symbol.vx, 0, 1, -symbol.vy, 0, 0, 1};
+            mViewBox = _translationMatrix(-symbol.vx, -symbol.vy);
         }
 
         // mSceneTransform = mUseTransform * mSymbolTransform * mViewBox
