@@ -21,6 +21,7 @@
  */
 
 #include <thorvg.h>
+#include <cstring>
 #include <fstream>
 #include "config.h"
 #include "catch.hpp"
@@ -334,6 +335,36 @@ TEST_CASE("Filling Draw", "[tvgSwEngine]")
     }
     REQUIRE(Initializer::term() == Result::Success);
 }
+
+#ifdef THORVG_SVG_LOADER_SUPPORT
+TEST_CASE("Invalid nested gradient is ignored", "[tvgSwEngine]")
+{
+    static const char* valid = R"svg(<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><g><linearGradient id="a"><stop stop-color="#decaff"/><stop stop-color="#dad" offset="1"/></linearGradient></g><circle r="7.5" cx="8" cy="8" fill="url(#a)"/></svg>)svg";
+    static const char* invalid = R"svg(<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><stop><linearGradient id="a"><stop stop-color="#decaff"/><stop stop-color="#dad" offset="1"/></linearGradient></stop><circle r="7.5" cx="8" cy="8" fill="url(#a)"/></svg>)svg";
+
+    auto render = [](const char* svg) {
+        auto canvas = unique_ptr<SwCanvas>(SwCanvas::gen());
+        REQUIRE(canvas);
+
+        uint32_t buffer[16 * 16] = {};
+        REQUIRE(canvas->target(buffer, 16, 16, 16, ColorSpace::ARGB8888) == Result::Success);
+
+        auto picture = Picture::gen();
+        REQUIRE(picture);
+        REQUIRE(picture->load(svg, strlen(svg), "svg") == Result::Success);
+        REQUIRE(canvas->add(picture) == Result::Success);
+        REQUIRE(canvas->draw() == Result::Success);
+        REQUIRE(canvas->sync() == Result::Success);
+
+        return buffer[8 * 16 + 8];
+    };
+
+    REQUIRE(Initializer::init() == Result::Success);
+    REQUIRE(render(valid) != 0x00000000);
+    REQUIRE(render(invalid) == 0x00000000);
+    REQUIRE(Initializer::term() == Result::Success);
+}
+#endif
 
 TEST_CASE("Image Rotation", "[tvgSwEngine]")
 {

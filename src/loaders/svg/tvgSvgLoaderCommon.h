@@ -616,6 +616,7 @@ struct SvgLoaderData
     SvgNode* cssStyle = nullptr;
     Array<SvgStyleGradient*> gradients;
     Array<SvgStyleGradient*> gradientStack; //For stops
+    Array<uint8_t> gradientNesting;
     SvgParser* svgParse = nullptr;
     Inlist<SvgNodeIdPair> cloneNodes;
     Array<SvgNodeIdPair> nodesToStyle;
@@ -625,6 +626,7 @@ struct SvgLoaderData
     bool result = false;
     OpenedTagType openedTag = OpenedTagType::Other;
     SvgNode* currentGraphicsNode = nullptr;
+    Array<uint8_t> xmlTagStack;
 };
 
 #endif

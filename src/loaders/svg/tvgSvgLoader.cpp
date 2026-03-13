@@ -3327,6 +3327,59 @@ static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc
 }
 
 
+enum class SvgXmlTagType : uint8_t
+{
+    Unknown,
+    Svg,
+    G,
+    Defs,
+    Symbol,
+    Mask,
+    ClipPath,
+    Filter,
+    Style,
+    Graphics,
+    Gradient,
+    Stop
+};
+
+
+static SvgXmlTagType _xmlTagType(const char* tagName)
+{
+    if (STR_AS(tagName, "svg")) return SvgXmlTagType::Svg;
+    if (STR_AS(tagName, "g")) return SvgXmlTagType::G;
+    if (STR_AS(tagName, "defs")) return SvgXmlTagType::Defs;
+    if (STR_AS(tagName, "symbol")) return SvgXmlTagType::Symbol;
+    if (STR_AS(tagName, "mask")) return SvgXmlTagType::Mask;
+    if (STR_AS(tagName, "clipPath")) return SvgXmlTagType::ClipPath;
+    if (STR_AS(tagName, "filter")) return SvgXmlTagType::Filter;
+    if (STR_AS(tagName, "style")) return SvgXmlTagType::Style;
+    if (STR_AS(tagName, "stop")) return SvgXmlTagType::Stop;
+    if (_findGradientFactory(tagName)) return SvgXmlTagType::Gradient;
+    if (_findGraphicsFactory(tagName)) return SvgXmlTagType::Graphics;
+    return SvgXmlTagType::Unknown;
+}
+
+
+static bool _isValidGradientContext(const Array<uint8_t>& xmlTagStack)
+{
+    auto count = xmlTagStack.count;
+    if (count == 0) return false;
+    if (static_cast<SvgXmlTagType>(xmlTagStack.last()) == SvgXmlTagType::Gradient) --count;
+    if (count == 0) return false;
+
+    for (uint32_t i = 0; i < count; ++i) {
+        auto tagType = static_cast<SvgXmlTagType>(xmlTagStack[i]);
+        if (tagType == SvgXmlTagType::Filter || tagType == SvgXmlTagType::Style ||
+            tagType == SvgXmlTagType::Graphics || tagType == SvgXmlTagType::Gradient ||
+            tagType == SvgXmlTagType::Stop) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 static void _svgLoaderParserXmlClose(SvgLoaderData* loader, const char* content, unsigned int length)
 {
     const char* itr = nullptr;
@@ -3355,7 +3408,10 @@ static void _svgLoaderParserXmlClose(SvgLoaderData* loader, const char* content,
 
     for (unsigned int i = 0; i < sizeof(gradientTags) / sizeof(gradientTags[0]); i++) {
         if (!strncmp(tagName, gradientTags[i].tag, sz)) {
-            loader->gradientStack.pop();
+            if (loader->gradientNesting.count > 0) {
+                if (loader->gradientNesting.last()) loader->gradientStack.pop();
+                loader->gradientNesting.pop();
+            }
             break;
         }
     }
@@ -3369,6 +3425,7 @@ static void _svgLoaderParserXmlClose(SvgLoaderData* loader, const char* content,
         }
     }
 
+    if (loader->xmlTagStack.count > 0) loader->xmlTagStack.pop();
     loader->level--;
 }
 
@@ -3382,6 +3439,7 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
     FactoryMethod method;
     GradientFactoryMethod gradientMethod;
     SvgNode *node = nullptr, *parent = nullptr;
+    SvgXmlTagType xmlTagType = SvgXmlTagType::Unknown;
     loader->level++;
     attrs = xmlFindAttributesTag(content, length);
 
@@ -3401,6 +3459,9 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
         tagName[sz] = '\0';
         attrsLength = length - sz;
     }
+
+    xmlTagType = _xmlTagType(tagName);
+    if (!empty) loader->xmlTagStack.push(static_cast<uint8_t>(xmlTagType));
 
     if ((method = _findGroupFactory(tagName))) {
         //Group
@@ -3442,10 +3503,9 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
             loader->currentGraphicsNode = node;
         }
     } else if ((gradientMethod = _findGradientFactory(tagName))) {
-        SvgStyleGradient* gradient;
-        gradient = gradientMethod(loader, attrs, attrsLength);
-        //Gradients do not allow nested declarations, so only the earliest declared Gradient is valid.
-        if (loader->gradientStack.count == 0) {
+        auto valid = _isValidGradientContext(loader->xmlTagStack);
+        if (valid) {
+            auto gradient = gradientMethod(loader, attrs, attrsLength);
             //FIXME: The current parsing structure does not distinguish end tags.
             //       There is no way to know if the currently parsed gradient is in defs.
             //       If a gradient is declared outside of defs after defs is set, it is included in the gradients of defs.
@@ -3457,10 +3517,13 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
             } else {
                 loader->gradients.push(gradient);
             }
+            if (!empty) loader->gradientStack.push(gradient);
+        } else {
+            TVGLOG("SVG", "Gradient element is used in an invalid context.");
         }
-        if (!empty) loader->gradientStack.push(gradient);
+        if (!empty) loader->gradientNesting.push(valid);
     } else if (STR_AS(tagName, "stop")) {
-        if (loader->gradientStack.count == 0) {
+        if (loader->gradientNesting.count == 0 || !loader->gradientNesting.last()) {
             TVGLOG("SVG", "Stop element is used outside of the Gradient element");
             return;
         }
@@ -3899,10 +3962,12 @@ void SvgLoader::clear(bool all)
     }
     loaderData.gradients.reset();
     loaderData.gradientStack.reset();
+    loaderData.gradientNesting.reset();
 
     _free(loaderData.doc);
     loaderData.doc = nullptr;
     loaderData.stack.reset();
+    loaderData.xmlTagStack.reset();
 
     if (!all) return;
 
