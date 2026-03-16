@@ -85,4 +85,38 @@ TEST_CASE("Set", "[tvgAccessor]")
     REQUIRE(Initializer::term() == Result::Success);
 }
 
+TEST_CASE("SVG group ids", "[tvgAccessor]")
+{
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        static const char svg[] = R"(<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250">
+  <rect id="background" width="400" height="250" fill="#1a6bb5"/>
+  <circle id="sun" cx="320" cy="60" r="45" fill="#f5c518"/>
+  <g id="mountains">
+    <polygon points="0,200 80,90 160,200" fill="#3a9e78"/>
+    <polygon points="80,200 180,70 280,200" fill="#3a9e78"/>
+  </g>
+  <g id="foreground">
+    <rect x="0" y="210" width="400" height="40" fill="#0d2b1a"/>
+  </g>
+</svg>)";
+
+        auto picture = Picture::gen();
+        REQUIRE(picture);
+        REQUIRE(picture->load(svg, sizeof(svg) - 1, "svg", nullptr, false) == Result::Success);
+
+        auto mountains = picture->paint(Accessor::id("mountains"));
+        auto foreground = picture->paint(Accessor::id("foreground"));
+
+        REQUIRE(mountains);
+        REQUIRE(foreground);
+        REQUIRE(mountains->type() == Type::Scene);
+        REQUIRE(foreground->type() == Type::Scene);
+        REQUIRE(mountains != foreground);
+
+        Picture::rel(picture);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
 #endif
