@@ -1053,37 +1053,6 @@ static void _handleCssClassAttr(SvgLoaderData* loader, SvgNode* node, const char
 
 typedef void (*styleMethod)(SvgLoaderData* loader, SvgNode* node, const char* value);
 
-#define STYLE_DEF(Name, Name1, Flag) { #Name, sizeof(#Name), _handle##Name1##Attr, Flag }
-
-
-static constexpr struct
-{
-    const char* tag;
-    int sz;
-    styleMethod tagHandler;
-    SvgStyleFlags flag;
-} styleTags[] = {
-    STYLE_DEF(color, Color, SvgStyleFlags::Color),
-    STYLE_DEF(fill, Fill, SvgStyleFlags::Fill),
-    STYLE_DEF(fill-rule, FillRule, SvgStyleFlags::FillRule),
-    STYLE_DEF(fill-opacity, FillOpacity, SvgStyleFlags::FillOpacity),
-    STYLE_DEF(opacity, Opacity, SvgStyleFlags::Opacity),
-    STYLE_DEF(stroke, Stroke, SvgStyleFlags::Stroke),
-    STYLE_DEF(stroke-width, StrokeWidth, SvgStyleFlags::StrokeWidth),
-    STYLE_DEF(stroke-linejoin, StrokeLineJoin, SvgStyleFlags::StrokeLineJoin),
-    STYLE_DEF(stroke-miterlimit, StrokeMiterlimit, SvgStyleFlags::StrokeMiterlimit),
-    STYLE_DEF(stroke-linecap, StrokeLineCap, SvgStyleFlags::StrokeLineCap),
-    STYLE_DEF(stroke-opacity, StrokeOpacity, SvgStyleFlags::StrokeOpacity),
-    STYLE_DEF(stroke-dasharray, StrokeDashArray, SvgStyleFlags::StrokeDashArray),
-    STYLE_DEF(stroke-dashoffset, StrokeDashOffset, SvgStyleFlags::StrokeDashOffset),
-    STYLE_DEF(transform, Transform, SvgStyleFlags::Transform),
-    STYLE_DEF(clip-path, ClipPath, SvgStyleFlags::ClipPath),
-    STYLE_DEF(mask, Mask, SvgStyleFlags::Mask),
-    STYLE_DEF(mask-type, MaskType, SvgStyleFlags::MaskType),
-    STYLE_DEF(display, Display, SvgStyleFlags::Display),
-    STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
-    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter)
-};
 
 
 static SvgXmlSpace _toXmlSpace(const char* str)
@@ -1094,11 +1063,58 @@ static SvgXmlSpace _toXmlSpace(const char* str)
 }
 
 
+static bool _findStyleTag(const char* key, int sz, styleMethod* handler, SvgStyleFlags* flag)
+{
+    switch (key[0]) {
+        case 'c':
+            if (sz == 5 && !memcmp(key, "color", 5)) { *handler = _handleColorAttr; *flag = SvgStyleFlags::Color; return true; }
+            if (sz == 9 && !memcmp(key, "clip-path", 9)) { *handler = _handleClipPathAttr; *flag = SvgStyleFlags::ClipPath; return true; }
+            break;
+        case 'd':
+            if (sz == 7 && !memcmp(key, "display", 7)) { *handler = _handleDisplayAttr; *flag = SvgStyleFlags::Display; return true; }
+            break;
+        case 'f':
+            if (sz == 4 && !memcmp(key, "fill", 4)) { *handler = _handleFillAttr; *flag = SvgStyleFlags::Fill; return true; }
+            if (sz == 6 && !memcmp(key, "filter", 6)) { *handler = _handleFilterAttr; *flag = SvgStyleFlags::Filter; return true; }
+            if (sz == 9 && !memcmp(key, "fill-rule", 9)) { *handler = _handleFillRuleAttr; *flag = SvgStyleFlags::FillRule; return true; }
+            if (sz == 12 && !memcmp(key, "fill-opacity", 12)) { *handler = _handleFillOpacityAttr; *flag = SvgStyleFlags::FillOpacity; return true; }
+            break;
+        case 'm':
+            if (sz == 4 && !memcmp(key, "mask", 4)) { *handler = _handleMaskAttr; *flag = SvgStyleFlags::Mask; return true; }
+            if (sz == 9 && !memcmp(key, "mask-type", 9)) { *handler = _handleMaskTypeAttr; *flag = SvgStyleFlags::MaskType; return true; }
+            break;
+        case 'o':
+            if (sz == 7 && !memcmp(key, "opacity", 7)) { *handler = _handleOpacityAttr; *flag = SvgStyleFlags::Opacity; return true; }
+            break;
+        case 'p':
+            if (sz == 11 && !memcmp(key, "paint-order", 11)) { *handler = _handlePaintOrderAttr; *flag = SvgStyleFlags::PaintOrder; return true; }
+            break;
+        case 's':
+            if (sz == 6 && !memcmp(key, "stroke", 6)) { *handler = _handleStrokeAttr; *flag = SvgStyleFlags::Stroke; return true; }
+            if (sz == 12 && !memcmp(key, "stroke-width", 12)) { *handler = _handleStrokeWidthAttr; *flag = SvgStyleFlags::StrokeWidth; return true; }
+            if (sz == 14) {
+                if (!memcmp(key, "stroke-linecap", 14)) { *handler = _handleStrokeLineCapAttr; *flag = SvgStyleFlags::StrokeLineCap; return true; }
+                if (!memcmp(key, "stroke-opacity", 14)) { *handler = _handleStrokeOpacityAttr; *flag = SvgStyleFlags::StrokeOpacity; return true; }
+            }
+            if (sz == 15 && !memcmp(key, "stroke-linejoin", 15)) { *handler = _handleStrokeLineJoinAttr; *flag = SvgStyleFlags::StrokeLineJoin; return true; }
+            if (sz == 16 && !memcmp(key, "stroke-dasharray", 16)) { *handler = _handleStrokeDashArrayAttr; *flag = SvgStyleFlags::StrokeDashArray; return true; }
+            if (sz == 17) {
+                if (!memcmp(key, "stroke-miterlimit", 17)) { *handler = _handleStrokeMiterlimitAttr; *flag = SvgStyleFlags::StrokeMiterlimit; return true; }
+                if (!memcmp(key, "stroke-dashoffset", 17)) { *handler = _handleStrokeDashOffsetAttr; *flag = SvgStyleFlags::StrokeDashOffset; return true; }
+            }
+            break;
+        case 't':
+            if (sz == 9 && !memcmp(key, "transform", 9)) { *handler = _handleTransformAttr; *flag = SvgStyleFlags::Transform; return true; }
+            break;
+    }
+    return false;
+}
+
+
 static bool _parseStyleAttr(void* data, const char* key, const char* value, bool style)
 {
     SvgLoaderData* loader = (SvgLoaderData*)data;
     SvgNode* node = loader->svgParse->node;
-    int sz;
     if (!key || !value) return false;
 
     //Trim the white space
@@ -1110,32 +1126,32 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
         return true;
     }
 
-    sz = strlen(key);
-    for (unsigned int i = 0; i < sizeof(styleTags) / sizeof(styleTags[0]); i++) {
-        if (styleTags[i].sz - 1 == sz && !strncmp(styleTags[i].tag, key, sz)) {
-            bool importance = false;
-            if (auto ptr = strstr(value, "!important")) {
-                size_t size = ptr - value;
-                while (size > 0 && isspace(value[size - 1])) {
-                    size--;
-                }
-                value = duplicate(value, size);
-                importance = true;
+    styleMethod handler;
+    SvgStyleFlags flag;
+    auto sz = strlen(key);
+    if (_findStyleTag(key, sz, &handler, &flag)) {
+        bool importance = false;
+        if (auto ptr = strstr(value, "!important")) {
+            size_t size = ptr - value;
+            while (size > 0 && isspace(value[size - 1])) {
+                size--;
             }
-            if (style) {
-                if (importance || !(node->style->flagsImportance & styleTags[i].flag)) {
-                    styleTags[i].tagHandler(loader, node, value);
-                    node->style->flags = (node->style->flags | styleTags[i].flag);
-                }
-            } else if (!(node->style->flags & styleTags[i].flag)) {
-                styleTags[i].tagHandler(loader, node, value);
-            }
-            if (importance) {
-                node->style->flagsImportance = (node->style->flags | styleTags[i].flag);
-                tvg::free(const_cast<char*>(value));
-            }
-            return true;
+            value = duplicate(value, size);
+            importance = true;
         }
+        if (style) {
+            if (importance || !(node->style->flagsImportance & flag)) {
+                handler(loader, node, value);
+                node->style->flags = (node->style->flags | flag);
+            }
+        } else if (!(node->style->flags & flag)) {
+            handler(loader, node, value);
+        }
+        if (importance) {
+            node->style->flagsImportance = (node->style->flags | flag);
+            tvg::free(const_cast<char*>(value));
+        }
+        return true;
     }
 
     return false;
