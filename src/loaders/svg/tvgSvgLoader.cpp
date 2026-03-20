@@ -3290,15 +3290,14 @@ static void _cloneNode(SvgNode* from, SvgNode* parent, int depth)
 }
 
 
-static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc)
+static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc, const SvgNodeIdMap& idMap)
 {
     auto nodeIdPair = cloneNodes->front();
     while (nodeIdPair) {
         if (!_findParentById(nodeIdPair->node, nodeIdPair->id, doc)) {
             //Check if none of nodeFrom's children are in the cloneNodes list
             auto postpone = false;
-            auto nodeFrom = _findNodeById(_getDefsNode(nodeIdPair->node), nodeIdPair->id);
-            if (!nodeFrom) nodeFrom = _findNodeById(doc, nodeIdPair->id);
+            auto nodeFrom = idMap.find(nodeIdPair->id);
             if (nodeFrom) {
                 INLIST_FOREACH((*cloneNodes), pair) {
                     if (_checkPostponed(nodeFrom, pair->node, 1)) {
@@ -3806,31 +3805,31 @@ static void _updateGradient(SvgLoaderData* loader, SvgNode* node, Array<SvgStyle
 }
 
 
-static void _updateComposite(SvgNode* node, SvgNode* root)
+static void _updateComposite(SvgNode* node, const SvgNodeIdMap& idMap)
 {
     if (node->style->clipPath.url && !node->style->clipPath.node) {
-        SvgNode* findResult = _findNodeById(root, node->style->clipPath.url);
+        SvgNode* findResult = idMap.find(node->style->clipPath.url);
         if (findResult) node->style->clipPath.node = findResult;
     }
     if (node->style->mask.url && !node->style->mask.node) {
-        SvgNode* findResult = _findNodeById(root, node->style->mask.url);
+        SvgNode* findResult = idMap.find(node->style->mask.url);
         if (findResult) node->style->mask.node = findResult;
     }
     if (node->child.count > 0) {
         ARRAY_FOREACH(p, node->child) {
-            _updateComposite(*p, root);
+            _updateComposite(*p, idMap);
         }
     }
 }
 
 
-static void _updateFilter(SvgNode* node, SvgNode* root)
+static void _updateFilter(SvgNode* node, const SvgNodeIdMap& idMap)
 {
     if (node->style->filter.url && !node->style->filter.node) {
-        node->style->filter.node = _findNodeById(root, node->style->filter.url);
+        node->style->filter.node = idMap.find(node->style->filter.url);
     }
     ARRAY_FOREACH(child, node->child) {
-        _updateFilter(*child, root);
+        _updateFilter(*child, idMap);
     }
 }
 
@@ -3900,6 +3899,7 @@ void SvgLoader::clear(bool all)
     loaderData.gradients.reset();
     loaderData.gradientStack.reset();
 
+    loaderData.nodeIdMap.reset();
     _free(loaderData.doc);
     loaderData.doc = nullptr;
     loaderData.stack.reset();
@@ -3940,16 +3940,17 @@ void SvgLoader::run(unsigned tid)
             if (loaderData.doc) {
                 auto defs = loaderData.doc->node.doc.defs;
 
+                //Build ID index for O(1) lookups in post-processing
+                loaderData.nodeIdMap.build(loaderData.doc, defs);
+
                 if (loaderData.nodesToStyle.count > 0) _cssApplyStyleToPostponeds(loaderData.nodesToStyle, loaderData.cssStyle);
                 if (loaderData.cssStyle) cssUpdateStyle(loaderData.doc, loaderData.cssStyle);
 
-                if (!loaderData.cloneNodes.empty()) _clonePostponedNodes(&loaderData.cloneNodes, loaderData.doc);
+                if (!loaderData.cloneNodes.empty()) _clonePostponedNodes(&loaderData.cloneNodes, loaderData.doc, loaderData.nodeIdMap);
 
-                _updateComposite(loaderData.doc, loaderData.doc);
-                if (defs) _updateComposite(loaderData.doc, defs);
+                _updateComposite(loaderData.doc, loaderData.nodeIdMap);
 
-                _updateFilter(loaderData.doc, loaderData.doc);
-                if (defs) _updateFilter(loaderData.doc, defs);
+                _updateFilter(loaderData.doc, loaderData.nodeIdMap);
 
                 _updateStyle(loaderData.doc, nullptr);
                 if (defs) _updateStyle(defs, nullptr);

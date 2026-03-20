@@ -608,6 +608,75 @@ enum class OpenedTagType : uint8_t
     Text
 };
 
+struct SvgNodeIdMap
+{
+    struct Entry { const char* id; SvgNode* node; };
+    Entry* entries = nullptr;
+    uint32_t capacity = 0;
+
+    void build(SvgNode* root, SvgNode* defs = nullptr)
+    {
+        //Count nodes with ids
+        uint32_t count = 0;
+        _count(root, count);
+        if (defs) _count(defs, count);
+        if (count == 0) return;
+        capacity = count * 3;  //load factor ~33% for fast lookup
+        entries = tvg::calloc<Entry>(capacity, sizeof(Entry));
+        _insert(root);
+        if (defs) _insert(defs);
+    }
+
+    SvgNode* find(const char* id) const
+    {
+        if (!entries || !id) return nullptr;
+        auto h = _hash(id) % capacity;
+        for (uint32_t i = 0; i < capacity; ++i) {
+            auto idx = (h + i) % capacity;
+            if (!entries[idx].id) return nullptr;
+            if (STR_AS(entries[idx].id, id)) return entries[idx].node;
+        }
+        return nullptr;
+    }
+
+    void reset()
+    {
+        tvg::free(entries);
+        entries = nullptr;
+        capacity = 0;
+    }
+
+private:
+    static uint32_t _hash(const char* s)
+    {
+        uint32_t h = 5381;
+        while (*s) h = h * 33 + (unsigned char)*s++;
+        return h;
+    }
+
+    void _count(SvgNode* node, uint32_t& count)
+    {
+        if (node->id) ++count;
+        ARRAY_FOREACH(p, node->child) _count(*p, count);
+    }
+
+    void _insert(SvgNode* node)
+    {
+        if (node->id) {
+            auto h = _hash(node->id) % capacity;
+            for (uint32_t i = 0; i < capacity; ++i) {
+                auto idx = (h + i) % capacity;
+                if (!entries[idx].id) {
+                    entries[idx] = {node->id, node};
+                    break;
+                }
+            }
+        }
+        ARRAY_FOREACH(p, node->child) _insert(*p);
+    }
+};
+
+
 struct SvgLoaderData
 {
     Array<SvgNode*> stack;
@@ -621,6 +690,7 @@ struct SvgLoaderData
     Array<SvgNodeIdPair> nodesToStyle;
     Array<char*> images;        //embedded images
     Array<FontFace> fonts;
+    SvgNodeIdMap nodeIdMap;
     int level = 0;
     bool result = false;
     OpenedTagType openedTag = OpenedTagType::Other;
