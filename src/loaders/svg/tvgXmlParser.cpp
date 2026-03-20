@@ -269,7 +269,8 @@ bool isIgnoreUnsupportedLogElements(TVG_UNUSED const char* tagName)
 bool xmlParseAttributes(const char* buf, unsigned bufLength, xmlAttributeCb func, const void* data)
 {
     const char *itr = buf, *itrEnd = buf + bufLength;
-    char* tmpBuf = tvg::malloc<char>(bufLength + 1);
+    char stackBuf[512];
+    char* tmpBuf = (bufLength + 1 <= sizeof(stackBuf)) ? stackBuf : tvg::malloc<char>(bufLength + 1);
 
     if (!buf || !func || !tmpBuf) goto error;
 
@@ -318,13 +319,19 @@ bool xmlParseAttributes(const char* buf, unsigned bufLength, xmlAttributeCb func
         tmpBuf[keyEnd - key] = '\0';
 
         tval = tmpBuf + (keyEnd - key) + 1;
-        int i = 0;
-        while (value < valueEnd) {
-            value = _xmlSkipXmlEntities(value, valueEnd);
-            tval[i++] = *value;
-            value++;
+        auto vlen = (size_t)(valueEnd - value);
+        if (!memchr(value, '&', vlen)) {
+            memcpy(tval, value, vlen);
+            tval[vlen] = '\0';
+        } else {
+            int i = 0;
+            while (value < valueEnd) {
+                value = _xmlSkipXmlEntities(value, valueEnd);
+                tval[i++] = *value;
+                value++;
+            }
+            tval[i] = '\0';
         }
-        tval[i] = '\0';
 
         if (!func((void*)data, tmpBuf, tval)) {
             if (_unsupported(tmpBuf, tval)) {
@@ -334,11 +341,11 @@ bool xmlParseAttributes(const char* buf, unsigned bufLength, xmlAttributeCb func
     }
 
 success:
-    tvg::free(tmpBuf);
+    if (tmpBuf != stackBuf) tvg::free(tmpBuf);
     return true;
 
 error:
-    tvg::free(tmpBuf);
+    if (tmpBuf != stackBuf) tvg::free(tmpBuf);
     return false;
 }
 
