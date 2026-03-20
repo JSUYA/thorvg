@@ -555,6 +555,14 @@ static constexpr struct
 };
 
 
+static uint8_t _hexToDecimal(char c)
+{
+    if (c >= 'a') return c - 'a' + 10;
+    if (c >= 'A') return c - 'A' + 10;
+    return c - '0';
+}
+
+
 static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** ref)
 {
     auto len = strlen(str);
@@ -562,30 +570,16 @@ static bool _toColor(const char* str, uint8_t& r, uint8_t&g, uint8_t& b, char** 
     if (len == 4 && str[0] == '#') {
         //Case for "#456" should be interpreted as "#445566"
         if (isxdigit(str[1]) && isxdigit(str[2]) && isxdigit(str[3])) {
-            char tmp[3] = { '\0', '\0', '\0' };
-            tmp[0] = str[1];
-            tmp[1] = str[1];
-            r = strtol(tmp, nullptr, 16);
-            tmp[0] = str[2];
-            tmp[1] = str[2];
-            g = strtol(tmp, nullptr, 16);
-            tmp[0] = str[3];
-            tmp[1] = str[3];
-            b = strtol(tmp, nullptr, 16);
+            r = _hexToDecimal(str[1]) * 17;
+            g = _hexToDecimal(str[2]) * 17;
+            b = _hexToDecimal(str[3]) * 17;
         }
         return true;
     } else if (len == 7 && str[0] == '#') {
         if (isxdigit(str[1]) && isxdigit(str[2]) && isxdigit(str[3]) && isxdigit(str[4]) && isxdigit(str[5]) && isxdigit(str[6])) {
-            char tmp[3] = { '\0', '\0', '\0' };
-            tmp[0] = str[1];
-            tmp[1] = str[2];
-            r = strtol(tmp, nullptr, 16);
-            tmp[0] = str[3];
-            tmp[1] = str[4];
-            g = strtol(tmp, nullptr, 16);
-            tmp[0] = str[5];
-            tmp[1] = str[6];
-            b = strtol(tmp, nullptr, 16);
+            r = (_hexToDecimal(str[1]) << 4) | _hexToDecimal(str[2]);
+            g = (_hexToDecimal(str[3]) << 4) | _hexToDecimal(str[4]);
+            b = (_hexToDecimal(str[5]) << 4) | _hexToDecimal(str[6]);
         }
         return true;
     } else if (len >= 10 && (str[0] == 'r' || str[0] == 'R') && (str[1] == 'g' || str[1] == 'G') && (str[2] == 'b' || str[2] == 'B') && str[3] == '(' && str[len - 1] == ')') {
