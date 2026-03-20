@@ -2229,60 +2229,45 @@ static SvgNode* _createTextNode(SvgLoaderData* loader, SvgNode* parent, const ch
 }
 
 
-static constexpr struct
+static FactoryMethod _findGroupFactory(const char* name)
 {
-    const char* tag;
-    int sz;
-    FactoryMethod tagHandler;
-} graphicsTags[] = {
-    {"use", sizeof("use"), _createUseNode},
-    {"circle", sizeof("circle"), _createCircleNode},
-    {"ellipse", sizeof("ellipse"), _createEllipseNode},
-    {"path", sizeof("path"), _createPathNode},
-    {"polygon", sizeof("polygon"), _createPolygonNode},
-    {"rect", sizeof("rect"), _createRectNode},
-    {"polyline", sizeof("polyline"), _createPolylineNode},
-    {"line", sizeof("line"), _createLineNode},
-    {"image", sizeof("image"), _createImageNode},
-    {"text", sizeof("text"), _createTextNode},
-    {"feGaussianBlur", sizeof("feGaussianBlur"), _createGaussianBlurNode}
-};
-
-
-static constexpr struct
-{
-    const char* tag;
-    int sz;
-    FactoryMethod tagHandler;
-} groupTags[] = {
-    {"defs", sizeof("defs"), _createDefsNode},
-    {"g", sizeof("g"), _createGNode},
-    {"svg", sizeof("svg"), _createSvgNode},
-    {"mask", sizeof("mask"), _createMaskNode},
-    {"clipPath", sizeof("clipPath"), _createClipPathNode},
-    {"style", sizeof("style"), _createCssStyleNode},
-    {"symbol", sizeof("symbol"), _createSymbolNode},
-    {"filter", sizeof("filter"), _createFilterNode}
-};
-
-
-#define FIND_FACTORY(Short_Name, Tags_Array)                                           \
-    static FactoryMethod                                                               \
-        _find##Short_Name##Factory(const char* name)                                   \
-    {                                                                                  \
-        unsigned int i;                                                                \
-        int sz = strlen(name);                                                         \
-                                                                                       \
-        for (i = 0; i < sizeof(Tags_Array) / sizeof(Tags_Array[0]); i++) {             \
-            if (Tags_Array[i].sz - 1 == sz && !strncmp(Tags_Array[i].tag, name, sz)) { \
-                return Tags_Array[i].tagHandler;                                       \
-            }                                                                          \
-        }                                                                              \
-        return nullptr;                                                                \
+    auto sz = strlen(name);
+    switch (name[0]) {
+        case 'd': if (sz == 4 && !memcmp(name, "defs", 4)) return _createDefsNode; break;
+        case 'g': if (sz == 1) return _createGNode; break;
+        case 's':
+            if (sz == 3 && !memcmp(name, "svg", 3)) return _createSvgNode;
+            if (sz == 5 && !memcmp(name, "style", 5)) return _createCssStyleNode;
+            if (sz == 6 && !memcmp(name, "symbol", 6)) return _createSymbolNode;
+            break;
+        case 'm': if (sz == 4 && !memcmp(name, "mask", 4)) return _createMaskNode; break;
+        case 'c': if (sz == 8 && !memcmp(name, "clipPath", 8)) return _createClipPathNode; break;
+        case 'f': if (sz == 6 && !memcmp(name, "filter", 6)) return _createFilterNode; break;
     }
+    return nullptr;
+}
 
-FIND_FACTORY(Group, groupTags)
-FIND_FACTORY(Graphics, graphicsTags)
+
+static FactoryMethod _findGraphicsFactory(const char* name)
+{
+    auto sz = strlen(name);
+    switch (name[0]) {
+        case 'u': if (sz == 3 && !memcmp(name, "use", 3)) return _createUseNode; break;
+        case 'c': if (sz == 6 && !memcmp(name, "circle", 6)) return _createCircleNode; break;
+        case 'e': if (sz == 7 && !memcmp(name, "ellipse", 7)) return _createEllipseNode; break;
+        case 'p':
+            if (sz == 4 && !memcmp(name, "path", 4)) return _createPathNode;
+            if (sz == 7 && !memcmp(name, "polygon", 7)) return _createPolygonNode;
+            if (sz == 8 && !memcmp(name, "polyline", 8)) return _createPolylineNode;
+            break;
+        case 'r': if (sz == 4 && !memcmp(name, "rect", 4)) return _createRectNode; break;
+        case 'l': if (sz == 4 && !memcmp(name, "line", 4)) return _createLineNode; break;
+        case 'i': if (sz == 5 && !memcmp(name, "image", 5)) return _createImageNode; break;
+        case 't': if (sz == 4 && !memcmp(name, "text", 4)) return _createTextNode; break;
+        case 'f': if (sz == 14 && !memcmp(name, "feGaussianBlur", 14)) return _createGaussianBlurNode; break;
+    }
+    return nullptr;
+}
 
 
 FillSpread _parseSpreadValue(const char* value)
@@ -2872,36 +2857,17 @@ static SvgStyleGradient* _createLinearGradient(SvgLoaderData* loader, const char
 }
 
 
-#define GRADIENT_DEF(Name, Name1)            \
-    {                                        \
-#Name, sizeof(#Name), _create##Name1         \
-    }
-
-
 /**
  * In the case when the gradients lengths are given as numbers (not percentages)
  * in the current user coordinate system, they are recalculated into percentages
  * related to the canvas width and height.
  */
-static constexpr struct
-{
-    const char* tag;
-    int sz;
-    GradientFactoryMethod tagHandler;
-} gradientTags[] = {
-    GRADIENT_DEF(linearGradient, LinearGradient),
-    GRADIENT_DEF(radialGradient, RadialGradient)
-};
-
-
 static GradientFactoryMethod _findGradientFactory(const char* name)
 {
-    int sz = strlen(name);
-
-    for (unsigned int i = 0; i < sizeof(gradientTags) / sizeof(gradientTags[0]); i++) {
-        if (gradientTags[i].sz - 1 == sz && !strncmp(gradientTags[i].tag, name, sz)) {
-            return gradientTags[i].tagHandler;
-        }
+    auto sz = strlen(name);
+    if (sz == 14) {
+        if (!memcmp(name, "linearGradient", 14)) return _createLinearGradient;
+        if (!memcmp(name, "radialGradient", 14)) return _createRadialGradient;
     }
     return nullptr;
 }
@@ -3346,27 +3312,14 @@ static void _svgLoaderParserXmlClose(SvgLoaderData* loader, const char* content,
     }
     else return;
 
-    for (unsigned int i = 0; i < sizeof(groupTags) / sizeof(groupTags[0]); i++) {
-        if (!strncmp(tagName, groupTags[i].tag, sz)) {
-            loader->stack.pop();
-            break;
-        }
-    }
-
-    for (unsigned int i = 0; i < sizeof(gradientTags) / sizeof(gradientTags[0]); i++) {
-        if (!strncmp(tagName, gradientTags[i].tag, sz)) {
-            loader->gradientStack.pop();
-            break;
-        }
-    }
-
-    for (unsigned int i = 0; i < sizeof(graphicsTags) / sizeof(graphicsTags[0]); i++) {
-        if (!strncmp(tagName, graphicsTags[i].tag, sz)) {
-            loader->currentGraphicsNode = nullptr;
-            if (!strncmp(tagName, "text", 4)) loader->openedTag = OpenedTagType::Other;
-            loader->stack.pop();
-            break;
-        }
+    if (_findGroupFactory(tagName)) {
+        loader->stack.pop();
+    } else if (_findGradientFactory(tagName)) {
+        loader->gradientStack.pop();
+    } else if (_findGraphicsFactory(tagName)) {
+        loader->currentGraphicsNode = nullptr;
+        if (sz == 4 && !memcmp(tagName, "text", 4)) loader->openedTag = OpenedTagType::Other;
+        loader->stack.pop();
     }
 
     loader->level--;
