@@ -23,7 +23,7 @@
 #ifndef _TVG_SVG_CSS_STYLE_H_
 #define _TVG_SVG_CSS_STYLE_H_
 
-#include "tvgSvgLoaderCommon.h"
+#include "tvgSvgModel.h"
 
 SvgNode* cssFindStyleNode(const SvgNode* style, const char* title, SvgNodeType type);
 SvgNode* cssFindStyleNode(const SvgNode* style, const char* title);

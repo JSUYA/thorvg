@@ -27,7 +27,7 @@
 #include "tvgStr.h"
 #include "tvgShape.h"
 #include "tvgSvgModel.h"
-#include "tvgSvgSceneBuilder.h"
+#include "tvgSvgBuilder.h"
 #include "tvgSvgPath.h"
 #include "tvgSvgUtil.h"
 
@@ -1035,7 +1035,7 @@ static void _loadFonts(Array<FontFace>& fonts)
 /* External Class Implementation                                        */
 /************************************************************************/
 
-Scene* svgSceneBuild(SvgLoaderData& loaderData, Box vBox, float w, float h, AspectRatioAlign align, AspectRatioMeetOrSlice meetOrSlice, const string& svgPath, SvgViewFlag viewFlag)
+Scene* SvgBuilder::build(SvgLoaderData& loaderData, Box vBox, float w, float h, AspectRatioAlign align, AspectRatioMeetOrSlice meetOrSlice, const string& svgPath, SvgViewFlag viewFlag)
 {
     //TODO: aspect ratio is valid only if viewBox was set
 

@@ -20,45 +20,26 @@
  * SOFTWARE.
  */
 
-#ifndef _TVG_SVG_LOADER_H_
-#define _TVG_SVG_LOADER_H_
+#ifndef _TVG_SVG_PARSER_H_
+#define _TVG_SVG_PARSER_H_
 
-#include "tvgTaskScheduler.h"
 #include "tvgSvgModel.h"
 
-class SvgLoader : public ImageLoader, public Task
+void _free(SvgNode* node);
+
+struct SvgParser
 {
-public:
-    string svgPath = "";
-    char* content = nullptr;
-    uint32_t size = 0;
-
-    SvgLoaderData loaderData;
-    Scene* root = nullptr;
-
-    bool copy = false;
-
-    SvgLoader();
-    ~SvgLoader();
-
-    bool open(const char* path) override;
-    bool open(const char* data, uint32_t size, const char* rpath, bool copy) override;
-    bool resize(Paint* paint, float w, float h) override;
-    bool read() override;
-    bool close() override;
-
-    Paint* paint() override;
-
-private:
-    SvgViewFlag viewFlag = SvgViewFlag::None;
-    AspectRatioAlign align = AspectRatioAlign::XMidYMid;
-    AspectRatioMeetOrSlice meetOrSlice = AspectRatioMeetOrSlice::Meet;
-    Box vbox{};
+    SvgParser(const char* content, uint32_t size, SvgLoaderData& loaderData)
+        : content(content), size(size), loaderData(loaderData) {}
+    ~SvgParser();
 
     bool header();
-    void clear(bool all = true);
-    void run(unsigned tid) override;
+    bool parse();
+
+private:
+    const char* content;
+    uint32_t size;
+    SvgLoaderData& loaderData;
 };
 
-
-#endif //_TVG_SVG_LOADER_H_
+#endif //_TVG_SVG_PARSER_H_

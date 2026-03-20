@@ -25,7 +25,7 @@
 #include <cstring>
 #include <ctype.h>
 #include "tvgMath.h"
-#include "tvgSvgLoaderCommon.h"
+#include "tvgSvgModel.h"
 #include "tvgSvgPath.h"
 #include "tvgStr.h"
 #include "tvgSvgUtil.h"
