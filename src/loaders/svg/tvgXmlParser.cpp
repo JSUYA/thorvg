@@ -69,18 +69,43 @@ static const char* _xmlFindWhiteSpace(const char* itr, const char* itrEnd)
 }
 
 
+static int _matchXmlEntity(const char* itr, const char* itrEnd)
+{
+    auto remaining = itrEnd - itr;
+    if (remaining < 4) return 0;
+    switch (itr[1]) {
+        case '#':
+            if (remaining >= 5 && !memcmp(itr, "&#10;", 5)) return 5;
+            if (remaining >= 6 && !memcmp(itr, "&#035;", 6)) return 6;
+            if (remaining >= 6 && !memcmp(itr, "&#039;", 6)) return 6;
+            break;
+        case 'a':
+            if (remaining >= 5 && !memcmp(itr, "&amp;", 5)) return 5;
+            if (remaining >= 6 && !memcmp(itr, "&apos;", 6)) return 6;
+            break;
+        case 'g':
+            if (remaining >= 4 && !memcmp(itr, "&gt;", 4)) return 4;
+            break;
+        case 'l':
+            if (remaining >= 4 && !memcmp(itr, "&lt;", 4)) return 4;
+            break;
+        case 'n':
+            if (remaining >= 6 && !memcmp(itr, "&nbsp;", 6)) return 6;
+            break;
+        case 'q':
+            if (remaining >= 6 && !memcmp(itr, "&quot;", 6)) return 6;
+            break;
+    }
+    return 0;
+}
+
+
 static const char* _xmlSkipXmlEntities(const char* itr, const char* itrEnd)
 {
-    auto p = itr;
     while (itr < itrEnd && *itr == '&') {
-        for (int i = 0; i < NUMBER_OF_XML_ENTITIES; ++i) {
-            if (strncmp(itr, xmlEntity[i], xmlEntityLength[i]) == 0) {
-                itr += xmlEntityLength[i];
-                break;
-            }
-        }
-        if (itr == p) break;
-        p = itr;
+        auto len = _matchXmlEntity(itr, itrEnd);
+        if (!len) break;
+        itr += len;
     }
     return itr;
 }
@@ -90,13 +115,24 @@ static const char* _xmlUnskipXmlEntities(const char* itr, const char* itrStart)
 {
     auto p = itr;
     while (itr > itrStart && *(itr - 1) == ';') {
-        for (int i = 0; i < NUMBER_OF_XML_ENTITIES; ++i) {
-            if (itr - xmlEntityLength[i] > itrStart &&
-                strncmp(itr - xmlEntityLength[i], xmlEntity[i], xmlEntityLength[i]) == 0) {
-                itr -= xmlEntityLength[i];
-                break;
-            }
+        int len = 0;
+        if (itr - 4 > itrStart && *(itr - 4) == '&') {
+            if (!memcmp(itr - 4, "&gt;", 4)) len = 4;
+            else if (!memcmp(itr - 4, "&lt;", 4)) len = 4;
         }
+        if (!len && itr - 5 > itrStart && *(itr - 5) == '&') {
+            if (!memcmp(itr - 5, "&amp;", 5)) len = 5;
+            else if (!memcmp(itr - 5, "&#10;", 5)) len = 5;
+        }
+        if (!len && itr - 6 > itrStart && *(itr - 6) == '&') {
+            if (!memcmp(itr - 6, "&quot;", 6)) len = 6;
+            else if (!memcmp(itr - 6, "&apos;", 6)) len = 6;
+            else if (!memcmp(itr - 6, "&nbsp;", 6)) len = 6;
+            else if (!memcmp(itr - 6, "&#035;", 6)) len = 6;
+            else if (!memcmp(itr - 6, "&#039;", 6)) len = 6;
+        }
+        if (!len) break;
+        itr -= len;
         if (itr == p) break;
         p = itr;
     }
