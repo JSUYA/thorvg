@@ -3292,8 +3292,20 @@ static void _cloneNode(SvgNode* from, SvgNode* parent, int depth)
 
 static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc)
 {
-    auto nodeIdPair = cloneNodes->front();
-    while (nodeIdPair) {
+    SvgNodeIdPair* sentinel = nullptr;
+
+    while (true) {
+        auto nodeIdPair = cloneNodes->front();
+        if (!nodeIdPair) break;
+
+        //Detect circular dependency: if we see the same item again after a full cycle with no progress
+        if (nodeIdPair == sentinel) {
+            TVGLOG("SVG", "Circular 'use' reference detected - '%s' cannot be resolved.", nodeIdPair->id);
+            tvg::free(nodeIdPair->id);
+            tvg::free(nodeIdPair);
+            break;
+        }
+
         if (!_findParentById(nodeIdPair->node, nodeIdPair->id, doc)) {
             //Check if none of nodeFrom's children are in the cloneNodes list
             auto postpone = false;
@@ -3303,6 +3315,7 @@ static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc
                 INLIST_FOREACH((*cloneNodes), pair) {
                     if (_checkPostponed(nodeFrom, pair->node, 1)) {
                         postpone = true;
+                        if (!sentinel) sentinel = nodeIdPair;  //mark start of unresolvable round
                         cloneNodes->back(nodeIdPair);
                         break;
                     }
@@ -3316,13 +3329,22 @@ static void _clonePostponedNodes(Inlist<SvgNodeIdPair>* cloneNodes, SvgNode* doc
                 }
                 tvg::free(nodeIdPair->id);
                 tvg::free(nodeIdPair);
+                sentinel = nullptr;  //progress made, reset cycle detection
             }
         } else {
             TVGLOG("SVG", "%s is ancestor element. This reference is invalid.", nodeIdPair->id);
             tvg::free(nodeIdPair->id);
             tvg::free(nodeIdPair);
+            sentinel = nullptr;  //progress made, reset cycle detection
         }
-        nodeIdPair = cloneNodes->front();
+    }
+
+    //Free any remaining items that are part of circular dependencies
+    while (true) {
+        auto item = cloneNodes->front();
+        if (!item) break;
+        tvg::free(item->id);
+        tvg::free(item);
     }
 }
 

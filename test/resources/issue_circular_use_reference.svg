@@ -1,0 +1,62 @@
+<svg id="svg-root" width="200" height="200" viewBox="0 0 200 200"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!--
+    Regression test for infinite loop in _clonePostponedNodes().
+
+    Root cause: Circular <use> references cause _clonePostponedNodes() to
+    loop forever. The function pops item A from the front of cloneNodes,
+    finds that B (its target) is still in the list (blocking), and pushes
+    A to the back. Then pops B, finds A is still in the list, pushes B
+    back. With no termination condition, this cycles endlessly.
+
+    Example cycles from W3C struct-use-12-f.svg:
+
+    Direct 2-cycle (A↔B):
+      <use xlink:href="#useShortCycle2" id="useShortCycle1"/>
+      <use xlink:href="#useShortCycle1" id="useShortCycle2"/>
+
+    Long chain cycle (1→2→...→12→back to 1):
+      <use xlink:href="#useLongCycle2" id="useLongCycle1"/>
+      ...
+      <use xlink:href="#useLongCycle1" id="useLongCycle12"/>
+
+    Nested use cycle:
+      <use id="useNested1" xlink:href="#useNested2">
+        <use id="useNested2" xlink:href="#useNested1"/>
+      </use>
+
+    Use referencing parent group:
+      <g id="grp1">
+        <use xlink:href="#grp1"/>
+      </g>
+
+    Fix: sentinel-based cycle detection in _clonePostponedNodes().
+    When an item is first postponed, it is recorded as sentinel.
+    If the same item appears at the front again (a full cycle with no
+    progress), all remaining items are in a circular dependency — break
+    out and free them.
+
+    This SVG must render a green rect without hanging:
+  -->
+
+  <!-- Direct 2-cycle: A references B, B references A -->
+  <use xlink:href="#cycle_b" id="cycle_a"/>
+  <use xlink:href="#cycle_a" id="cycle_b"/>
+
+  <!-- Use referencing its own parent group -->
+  <g id="self_ref_group">
+    <use xlink:href="#self_ref_group"/>
+  </g>
+
+  <!-- Indirect cycle: elem1 → group → elem2 → elem1 -->
+  <g id="indirect_group">
+    <use xlink:href="#indirect_elem2" id="indirect_elem1"/>
+  </g>
+  <use xlink:href="#indirect_group" id="indirect_elem2"/>
+
+  <!-- If we get here without hanging, the fix works -->
+  <rect width="200" height="200" fill="green"/>
+  <rect x="10" y="10" width="180" height="40" fill="white" opacity="0.8"/>
+  <text x="100" y="38" font-size="16" text-anchor="middle" fill="green">No infinite loop</text>
+</svg>
