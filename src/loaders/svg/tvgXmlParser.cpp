@@ -452,8 +452,9 @@ bool xmlParseW3CAttribute(const char* buf, unsigned bufLength, xmlAttributeCb fu
 
         if (auto src = strstr(buf, "src")) {//src tag from css font-face contains extra semicolon
             if (src < sep) {
-                if (next + 1 < end) next = (char*)strchr(next + 1, ';');
-                else break;
+                if (next && next + 1 < end) next = (char*)strchr(next + 1, ';');
+                else if (next) break;
+                //else: next is nullptr, no semicolon found - let the no-semicolon path handle it
             }
         }
 
