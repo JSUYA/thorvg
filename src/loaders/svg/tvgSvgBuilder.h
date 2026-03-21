@@ -27,9 +27,7 @@
 
 struct SvgBuilder
 {
-    Scene* build(SvgLoaderData& loaderData, Box vBox, float w, float h,
-                 AspectRatioAlign align, AspectRatioMeetOrSlice meetOrSlice,
-                 const string& svgPath, SvgViewFlag viewFlag);
+    Scene* build(SvgDocument* doc, const string& svgPath);
 };
 
 #endif //_TVG_SVG_BUILDER_H_

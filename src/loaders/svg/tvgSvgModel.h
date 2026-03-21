@@ -627,4 +627,18 @@ struct SvgLoaderData
     SvgNode* currentGraphicsNode = nullptr;
 };
 
+struct SvgDocument
+{
+    SvgNode* root = nullptr;
+    Array<FontFace> fonts;
+    Array<char*> images;
+    Box viewport = {};          //effective SVG viewport for percentage calculations
+    Box vBox = {};
+    float w = 0.0f;
+    float h = 0.0f;
+    SvgViewFlag viewFlag = SvgViewFlag::None;
+    AspectRatioAlign align = AspectRatioAlign::XMidYMid;
+    AspectRatioMeetOrSlice meetOrSlice = AspectRatioMeetOrSlice::Meet;
+};
+
 #endif //_TVG_SVG_MODEL_H_

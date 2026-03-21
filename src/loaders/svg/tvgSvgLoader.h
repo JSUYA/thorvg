@@ -33,7 +33,7 @@ public:
     char* content = nullptr;
     uint32_t size = 0;
 
-    SvgLoaderData loaderData;
+    SvgDocument* doc = nullptr;
     Scene* root = nullptr;
 
     bool copy = false;

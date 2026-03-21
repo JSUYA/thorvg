@@ -35,32 +35,26 @@
 
 void SvgLoader::clear(bool all)
 {
-    //flush out the intermediate data
-    tvg::free(loaderData.svgParse);
-    loaderData.svgParse = nullptr;
-
-    ARRAY_FOREACH(p, loaderData.gradients) {
-        (*p)->clear();
-        tvg::free(*p);
-    }
-    loaderData.gradients.reset();
-    loaderData.gradientStack.reset();
-
-    _free(loaderData.doc);
-    loaderData.doc = nullptr;
-    loaderData.stack.reset();
-
+    //Parse-time state is internal to SvgParser and cleaned up when the parser is destroyed.
     if (!all) return;
 
-    ARRAY_FOREACH(p, loaderData.images) tvg::free(*p);
-    loaderData.images.reset();
+    if (doc) {
+        _free(doc->root);
+        doc->root = nullptr;
 
-    ARRAY_FOREACH(p, loaderData.fonts) {
-        Text::unload(p->name);
-        tvg::free(p->decoded);
-        tvg::free(p->name);
+        ARRAY_FOREACH(p, doc->images) tvg::free(*p);
+        doc->images.reset();
+
+        ARRAY_FOREACH(p, doc->fonts) {
+            Text::unload(p->name);
+            tvg::free(p->decoded);
+            tvg::free(p->name);
+        }
+        doc->fonts.reset();
+
+        tvg::free(doc);
+        doc = nullptr;
     }
-    loaderData.fonts.reset();
 
     if (copy) tvg::free((char*)content);
 
@@ -82,25 +76,41 @@ void SvgLoader::run(unsigned tid)
         TVGLOG("SVG", "The <viewBox> width and/or height set to 0 - rendering disabled.");
         root = Scene::gen();
     } else {
-        SvgParser parser(content, size, loaderData);
+        SvgParser parser(content, size);
         if (parser.parse()) {
-            if (loaderData.doc) {
+            //Replace any previous (header-only) doc with the fully parsed document
+            if (doc) {
+                _free(doc->root);
+                doc->root = nullptr;
+                tvg::free(doc);
+            }
+            doc = parser.doc;
+            parser.doc = nullptr;
+
+            if (doc && doc->root) {
+                //Apply viewport settings resolved by header() into the document
+                doc->vBox = vbox;
+                doc->w = w;
+                doc->h = h;
+                doc->viewFlag = viewFlag;
+                doc->align = align;
+                doc->meetOrSlice = meetOrSlice;
+
                 SvgBuilder builder;
-                root = builder.build(loaderData, vbox, w, h, align, meetOrSlice, svgPath, viewFlag);
+                root = builder.build(doc, svgPath);
 
                 //In case no viewbox and width/height data is provided the completion of loading
                 //has to be forced, in order to establish this data based on the whole picture.
                 if (!(viewFlag & SvgViewFlag::Viewbox)) {
                     //Override viewbox & size again after svg loading.
-                    vbox = loaderData.doc->node.doc.vbox;
-                    w = loaderData.doc->node.doc.w;
-                    h = loaderData.doc->node.doc.h;
+                    vbox = doc->root->node.doc.vbox;
+                    w = doc->root->node.doc.w;
+                    h = doc->root->node.doc.h;
                 }
             }
         }
     }
     root->ref();
-    clear(false);
 }
 
 
@@ -128,34 +138,38 @@ bool SvgLoader::header()
     viewFlag = SvgViewFlag::None;
 
     {
-        SvgParser parser(content, size, loaderData);
+        SvgParser parser(content, size);
         if (!parser.header()) {
             TVGLOG("SVG", "No SVG File. There is no <svg/>");
             return false;
         }
+        //Take ownership of the header-only document (metadata only, no full node tree)
+        tvg::free(doc);
+        doc = parser.doc;
+        parser.doc = nullptr;
     }
 
-    viewFlag = loaderData.doc->node.doc.viewFlag;
-    align = loaderData.doc->node.doc.align;
-    meetOrSlice = loaderData.doc->node.doc.meetOrSlice;
+    viewFlag = doc->viewFlag;
+    align = doc->align;
+    meetOrSlice = doc->meetOrSlice;
 
     if (viewFlag & SvgViewFlag::Viewbox) {
-        vbox = loaderData.doc->node.doc.vbox;
+        vbox = doc->vBox;
 
-        if (viewFlag & SvgViewFlag::Width) w = loaderData.doc->node.doc.w;
+        if (viewFlag & SvgViewFlag::Width) w = doc->w;
         else {
-            w = loaderData.doc->node.doc.vbox.w;
+            w = doc->vBox.w;
             if (viewFlag & SvgViewFlag::WidthInPercent) {
-                w *= loaderData.doc->node.doc.w;
+                w *= doc->w;
                 viewFlag = (viewFlag ^ SvgViewFlag::WidthInPercent);
             }
             viewFlag = (viewFlag | SvgViewFlag::Width);
         }
-        if (viewFlag & SvgViewFlag::Height) h = loaderData.doc->node.doc.h;
+        if (viewFlag & SvgViewFlag::Height) h = doc->h;
         else {
-            h = loaderData.doc->node.doc.vbox.h;
+            h = doc->vBox.h;
             if (viewFlag & SvgViewFlag::HeightInPercent) {
-                h *= loaderData.doc->node.doc.h;
+                h *= doc->h;
                 viewFlag = (viewFlag ^ SvgViewFlag::HeightInPercent);
             }
             viewFlag = (viewFlag | SvgViewFlag::Height);
@@ -166,20 +180,20 @@ bool SvgLoader::header()
         //Before loading, set default viewbox & size if they are empty
         vbox.x = vbox.y = 0.0f;
         if (viewFlag & SvgViewFlag::Width) {
-            vbox.w = w = loaderData.doc->node.doc.w;
+            vbox.w = w = doc->w;
         } else {
             vbox.w = 1.0f;
             if (viewFlag & SvgViewFlag::WidthInPercent) {
-                w = loaderData.doc->node.doc.w;
+                w = doc->w;
             } else w = 1.0f;
         }
 
         if (viewFlag & SvgViewFlag::Height) {
-            vbox.h = h = loaderData.doc->node.doc.h;
+            vbox.h = h = doc->h;
         } else {
             vbox.h = 1.0f;
             if (viewFlag & SvgViewFlag::HeightInPercent) {
-                h = loaderData.doc->node.doc.h;
+                h = doc->h;
             } else h = 1.0f;
         }
 

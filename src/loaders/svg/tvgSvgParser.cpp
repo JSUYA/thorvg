@@ -3914,6 +3914,31 @@ static bool _svgLoaderParserForValidCheck(void* data, XMLType type, const char* 
 
 SvgParser::~SvgParser()
 {
+    //Free internal parse state. doc->root ownership is transferred in parse(); loaderData.doc
+    //may still be set if header() was called without parse() (e.g., validation-only path).
+    tvg::free(loaderData.svgParse);
+    loaderData.svgParse = nullptr;
+
+    ARRAY_FOREACH(p, loaderData.gradients) {
+        (*p)->clear();
+        tvg::free(*p);
+    }
+    loaderData.gradients.reset();
+    loaderData.gradientStack.reset();
+
+    _free(loaderData.doc);
+    loaderData.doc = nullptr;
+    loaderData.stack.reset();
+
+    //images and fonts are transferred to SvgDocument in parse(); only free here if not transferred
+    ARRAY_FOREACH(p, loaderData.images) tvg::free(*p);
+    loaderData.images.reset();
+
+    ARRAY_FOREACH(p, loaderData.fonts) {
+        tvg::free(p->decoded);
+        tvg::free(p->name);
+    }
+    loaderData.fonts.reset();
 }
 
 
@@ -3927,12 +3952,33 @@ bool SvgParser::header()
 
     xmlParse(content, size, true, _svgLoaderParserForValidCheck, &loaderData);
 
-    return (loaderData.doc && loaderData.doc->type == SvgNodeType::Doc);
+    if (!loaderData.doc || loaderData.doc->type != SvgNodeType::Doc) return false;
+
+    doc = tvg::malloc<SvgDocument>(sizeof(SvgDocument));
+    if (!doc) return false;
+    new (doc) SvgDocument;
+
+    auto& docNode = loaderData.doc->node.doc;
+    doc->vBox = docNode.vbox;
+    doc->w = docNode.w;
+    doc->h = docNode.h;
+    doc->viewFlag = docNode.viewFlag;
+    doc->align = docNode.align;
+    doc->meetOrSlice = docNode.meetOrSlice;
+    if (loaderData.svgParse) doc->viewport = loaderData.svgParse->global;
+
+    return true;
 }
 
 
 bool SvgParser::parse()
 {
+    if (!loaderData.svgParse) {
+        loaderData.svgParse = tvg::malloc<SvgParseState>(sizeof(SvgParseState));
+        if (!loaderData.svgParse) return false;
+        loaderData.svgParse->flags = SvgStopStyleFlags::StopDefault;
+    }
+
     if (!xmlParse(content, size, true, _svgLoaderParser, &loaderData)) return false;
 
     if (!loaderData.doc) return false;
@@ -3955,6 +4001,30 @@ bool SvgParser::parse()
 
     if (loaderData.gradients.count > 0) _updateGradient(&loaderData, loaderData.doc, &loaderData.gradients);
     if (defs) _updateGradient(&loaderData, loaderData.doc, &defs->node.defs.gradients);
+
+    //Build SvgDocument from parsed state, transferring ownership of the node tree and resources
+    doc = tvg::malloc<SvgDocument>(sizeof(SvgDocument));
+    if (!doc) return false;
+    new (doc) SvgDocument;
+
+    //Transfer node tree ownership: destructor will skip _free(loaderData.doc) since it's null
+    doc->root = loaderData.doc;
+    loaderData.doc = nullptr;
+
+    //Transfer embedded resources
+    loaderData.fonts.move(doc->fonts);
+    loaderData.images.move(doc->images);
+
+    //Copy viewport and view settings from the parsed SVG root
+    if (loaderData.svgParse) doc->viewport = loaderData.svgParse->global;
+
+    auto& docNode = doc->root->node.doc;
+    doc->vBox = docNode.vbox;
+    doc->w = docNode.w;
+    doc->h = docNode.h;
+    doc->viewFlag = docNode.viewFlag;
+    doc->align = docNode.align;
+    doc->meetOrSlice = docNode.meetOrSlice;
 
     return true;
 }

@@ -29,17 +29,18 @@ void _free(SvgNode* node);
 
 struct SvgParser
 {
-    SvgParser(const char* content, uint32_t size, SvgLoaderData& loaderData)
-        : content(content), size(size), loaderData(loaderData) {}
+    SvgParser(const char* content, uint32_t size) : content(content), size(size) {}
     ~SvgParser();
 
     bool header();
     bool parse();
 
+    SvgDocument* doc = nullptr;     //populated by parse() or header(); caller takes ownership
+
 private:
     const char* content;
     uint32_t size;
-    SvgLoaderData& loaderData;
+    SvgLoaderData loaderData;       //internal parse state, owned by this parser
 };
 
 #endif //_TVG_SVG_PARSER_H_
