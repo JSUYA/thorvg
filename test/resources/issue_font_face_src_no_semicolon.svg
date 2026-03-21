@@ -1,0 +1,44 @@
+<svg version="1.1" width="200" height="100" viewBox="0 0 200 100"
+  xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Regression test for SIGSEGV in xmlParseW3CAttribute().
+
+    Root cause: CSS @font-face with 'src:' property that has no trailing semicolon.
+    When next = strchr(buf, ';') returns nullptr (no ';' found), the guard
+    `if (next + 1 < end)` evaluated `nullptr+1 = 0x1 < end` as true on all
+    platforms, then called strchr(0x1, ';'). On arm64, the NEON instruction
+    `ldr q0, [x0]` aligns to 0x0 and triggers EXC_BAD_ACCESS / SIGSEGV.
+
+    Fix: added `next &&` check in tvgXmlParser.cpp before the null pointer
+    arithmetic: `if (next && next + 1 < end)`.
+
+    All four variants below must render without crashing:
+      1. src: url("...") format("svg")     - no trailing semicolon, double quotes
+      2. src: url('...')  format("woff")   - no trailing semicolon, single quotes
+      3. src: url(...)    format("truetype") - no trailing semicolon, no quotes
+      4. src: url("..."); format("svg")    - WITH trailing semicolon (should also work)
+  -->
+  <defs>
+    <style type="text/css">
+      @font-face {
+        font-family: 'TestFont1';
+        src: url("nonexistent.svg#Font") format("svg")
+      }
+      @font-face {
+        font-family: 'TestFont2';
+        src: url('nonexistent.woff') format("woff")
+      }
+      @font-face {
+        font-family: 'TestFont3';
+        src: url(nonexistent.ttf) format("truetype")
+      }
+      @font-face {
+        font-family: 'TestFont4';
+        src: url("nonexistent2.woff");
+      }
+    </style>
+  </defs>
+  <rect width="200" height="100" fill="green"/>
+  <text x="10" y="50" font-family="TestFont1,sans-serif" font-size="16" fill="white">Hello</text>
+  <text x="10" y="80" font-family="TestFont2,sans-serif" font-size="16" fill="white">World</text>
+</svg>
