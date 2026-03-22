@@ -3979,6 +3979,15 @@ bool SvgParser::parse()
         loaderData.svgParse->flags = SvgStopStyleFlags::StopDefault;
     }
 
+    //Pre-pass: find and initialize the <svg> root node so that SVG elements accidentally
+    //processed during DOCTYPE internal subset parsing (entity declaration content) are
+    //attached to the tree. The XML parser doesn't properly skip [...]  internal subsets,
+    //so elements inside entity values are parsed as regular SVG elements.
+    //Pre-setting loaderData.doc here restores the same behavior as the legacy code path
+    //where header() ran first on the same loaderData instance.
+    xmlParse(content, size, true, _svgLoaderParserForValidCheck, &loaderData);
+    if (!loaderData.doc) return false;
+
     if (!xmlParse(content, size, true, _svgLoaderParser, &loaderData)) return false;
 
     if (!loaderData.doc) return false;
