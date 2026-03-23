@@ -248,8 +248,7 @@ bool _prepareRadial(SwFill* fill, const RadialGradient* radial, const Matrix& pT
     fill->radial.fx = fx;
     fill->radial.fy = fy;
     fill->radial.a = fill->radial.dr * fill->radial.dr - fill->radial.dx * fill->radial.dx - fill->radial.dy * fill->radial.dy;
-    constexpr float precision = 0.01f;
-    if (fill->radial.a < precision) fill->radial.a = precision;
+    if (fill->radial.a < RADIAL_A_THRESHOLD) fill->radial.a = RADIAL_A_THRESHOLD;
     fill->radial.invA = 1.0f / fill->radial.a;
 
     const auto& transform = pTransform * radial->transform();
