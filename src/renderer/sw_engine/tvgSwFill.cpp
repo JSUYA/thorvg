@@ -27,7 +27,6 @@
 /* Internal Class Implementation                                        */
 /************************************************************************/
 
-#define RADIAL_A_THRESHOLD 0.0005f
 #define FIXPT_BITS 8
 #define FIXPT_SIZE (1<<FIXPT_BITS)
 
@@ -248,8 +247,7 @@ bool _prepareRadial(SwFill* fill, const RadialGradient* radial, const Matrix& pT
     fill->radial.fx = fx;
     fill->radial.fy = fy;
     fill->radial.a = fill->radial.dr * fill->radial.dr - fill->radial.dx * fill->radial.dx - fill->radial.dy * fill->radial.dy;
-    if (fill->radial.a < RADIAL_A_THRESHOLD) fill->radial.a = RADIAL_A_THRESHOLD;
-    fill->radial.invA = 1.0f / fill->radial.a;
+    fill->radial.invA = (fill->radial.a > 0.0f) ? 1.0f / fill->radial.a : 0.0f;
 
     const auto& transform = pTransform * radial->transform();
 
@@ -313,45 +311,22 @@ static inline uint32_t _pixel(const SwFill* fill, float pos)
 
 void fillRadial(const SwFill* fill, uint32_t* dst, uint32_t y, uint32_t x, uint32_t len, uint8_t* cmp, SwAlpha alpha, uint8_t csize, uint8_t opacity)
 {
-    //edge case
-    if (fill->radial.a < RADIAL_A_THRESHOLD) {
-        auto radial = &fill->radial;
-        auto rx = (x + 0.5f) * radial->a11 + (y + 0.5f) * radial->a12 + radial->a13 - radial->fx;
-        auto ry = (x + 0.5f) * radial->a21 + (y + 0.5f) * radial->a22 + radial->a23 - radial->fy;
+    float b, deltaB, det, deltaDet, deltaDeltaDet;
+    _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
 
-        if (opacity == 255) {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
-                auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-                *dst = opBlendNormal(_pixel(fill, x0), *dst, alpha(cmp));
-                rx += radial->a11;
-                ry += radial->a21;
-            }
-        } else {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
-                auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-                *dst = opBlendNormal(_pixel(fill, x0), *dst, MULTIPLY(opacity, alpha(cmp)));
-                rx += radial->a11;
-                ry += radial->a21;
-            }
+    if (opacity == 255) {
+        for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
+            *dst = opBlendNormal(_pixel(fill, sqrtf(std::max(0.0f, det)) - b), *dst, alpha(cmp));
+            det += deltaDet;
+            deltaDet += deltaDeltaDet;
+            b += deltaB;
         }
     } else {
-        float b, deltaB, det, deltaDet, deltaDeltaDet;
-        _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
-
-        if (opacity == 255) {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
-                *dst = opBlendNormal(_pixel(fill, sqrtf(det) - b), *dst, alpha(cmp));
-                det += deltaDet;
-                deltaDet += deltaDeltaDet;
-                b += deltaB;
-            }
-        } else {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
-                *dst = opBlendNormal(_pixel(fill, sqrtf(det) - b), *dst, MULTIPLY(opacity, alpha(cmp)));
-                det += deltaDet;
-                deltaDet += deltaDeltaDet;
-                b += deltaB;
-            }
+        for (uint32_t i = 0 ; i < len ; ++i, ++dst, cmp += csize) {
+            *dst = opBlendNormal(_pixel(fill, sqrtf(std::max(0.0f, det)) - b), *dst, MULTIPLY(opacity, alpha(cmp)));
+            det += deltaDet;
+            deltaDet += deltaDeltaDet;
+            b += deltaB;
         }
     }
 }
@@ -359,133 +334,70 @@ void fillRadial(const SwFill* fill, uint32_t* dst, uint32_t y, uint32_t x, uint3
 
 void fillRadial(const SwFill* fill, uint32_t* dst, uint32_t y, uint32_t x, uint32_t len, SwBlenderA op, uint8_t a)
 {
-    if (fill->radial.a < RADIAL_A_THRESHOLD) {
-        auto radial = &fill->radial;
-        auto rx = (x + 0.5f) * radial->a11 + (y + 0.5f) * radial->a12 + radial->a13 - radial->fx;
-        auto ry = (x + 0.5f) * radial->a21 + (y + 0.5f) * radial->a22 + radial->a23 - radial->fy;
-        for (uint32_t i = 0; i < len; ++i, ++dst) {
-            auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-            *dst = op(_pixel(fill, x0), *dst, a);
-            rx += radial->a11;
-            ry += radial->a21;
-        }
-    } else {
-        float b, deltaB, det, deltaDet, deltaDeltaDet;
-        _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
+    float b, deltaB, det, deltaDet, deltaDeltaDet;
+    _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
 
-        for (uint32_t i = 0; i < len; ++i, ++dst) {
-            *dst = op(_pixel(fill, sqrtf(det) - b), *dst, a);
-            det += deltaDet;
-            deltaDet += deltaDeltaDet;
-            b += deltaB;
-        }
+    for (uint32_t i = 0; i < len; ++i, ++dst) {
+        *dst = op(_pixel(fill, sqrtf(std::max(0.0f, det)) - b), *dst, a);
+        det += deltaDet;
+        deltaDet += deltaDeltaDet;
+        b += deltaB;
     }
 }
 
 
 void fillRadial(const SwFill* fill, uint8_t* dst, uint32_t y, uint32_t x, uint32_t len, SwMask maskOp, uint8_t a)
 {
-    if (fill->radial.a < RADIAL_A_THRESHOLD) {
-        auto radial = &fill->radial;
-        auto rx = (x + 0.5f) * radial->a11 + (y + 0.5f) * radial->a12 + radial->a13 - radial->fx;
-        auto ry = (x + 0.5f) * radial->a21 + (y + 0.5f) * radial->a22 + radial->a23 - radial->fy;
-        for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
-            auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-            auto src = MULTIPLY(a, A(_pixel(fill, x0)));
-            *dst = maskOp(src, *dst, ~src);
-            rx += radial->a11;
-            ry += radial->a21;
-        }
-    } else {
-        float b, deltaB, det, deltaDet, deltaDeltaDet;
-        _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
+    float b, deltaB, det, deltaDet, deltaDeltaDet;
+    _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
 
-        for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
-            auto src = MULTIPLY(a, A(_pixel(fill, sqrtf(det) - b)));
-            *dst = maskOp(src, *dst, ~src);
-            det += deltaDet;
-            deltaDet += deltaDeltaDet;
-            b += deltaB;
-        }
+    for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
+        auto src = MULTIPLY(a, A(_pixel(fill, sqrtf(std::max(0.0f, det)) - b)));
+        *dst = maskOp(src, *dst, ~src);
+        det += deltaDet;
+        deltaDet += deltaDeltaDet;
+        b += deltaB;
     }
 }
 
 
 void fillRadial(const SwFill* fill, uint8_t* dst, uint32_t y, uint32_t x, uint32_t len, uint8_t* cmp, SwMask maskOp, uint8_t a)
 {
-    if (fill->radial.a < RADIAL_A_THRESHOLD) {
-        auto radial = &fill->radial;
-        auto rx = (x + 0.5f) * radial->a11 + (y + 0.5f) * radial->a12 + radial->a13 - radial->fx;
-        auto ry = (x + 0.5f) * radial->a21 + (y + 0.5f) * radial->a22 + radial->a23 - radial->fy;
-        for (uint32_t i = 0 ; i < len ; ++i, ++dst, ++cmp) {
-            auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-            auto src = MULTIPLY(A(A(_pixel(fill, x0))), a);
-            auto tmp = maskOp(src, *cmp, 0);
-            *dst = tmp + MULTIPLY(*dst, ~tmp);
-            rx += radial->a11;
-            ry += radial->a21;
-        }
-    } else {
-        float b, deltaB, det, deltaDet, deltaDeltaDet;
-        _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
+    float b, deltaB, det, deltaDet, deltaDeltaDet;
+    _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
 
-        for (uint32_t i = 0 ; i < len ; ++i, ++dst, ++cmp) {
-            auto src = MULTIPLY(A(_pixel(fill, sqrtf(det))), a);
-            auto tmp = maskOp(src, *cmp, 0);
-            *dst = tmp + MULTIPLY(*dst, ~tmp);
-            det += deltaDet;
-            deltaDet += deltaDeltaDet;
-            b += deltaB;
-        }
+    for (uint32_t i = 0 ; i < len ; ++i, ++dst, ++cmp) {
+        auto src = MULTIPLY(A(_pixel(fill, sqrtf(std::max(0.0f, det)) - b)), a);
+        auto tmp = maskOp(src, *cmp, 0);
+        *dst = tmp + MULTIPLY(*dst, ~tmp);
+        det += deltaDet;
+        deltaDet += deltaDeltaDet;
+        b += deltaB;
     }
 }
 
 
 void fillRadial(const SwFill* fill, uint32_t* dst, uint32_t y, uint32_t x, uint32_t len, SwBlenderA op, SwBlender op2, uint8_t a)
 {
-    if (fill->radial.a < RADIAL_A_THRESHOLD) {
-        auto radial = &fill->radial;
-        auto rx = (x + 0.5f) * radial->a11 + (y + 0.5f) * radial->a12 + radial->a13 - radial->fx;
-        auto ry = (x + 0.5f) * radial->a21 + (y + 0.5f) * radial->a22 + radial->a23 - radial->fy;
+    float b, deltaB, det, deltaDet, deltaDeltaDet;
+    _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
 
-        if (a == 255) {
-            for (uint32_t i = 0; i < len; ++i, ++dst) {
-                auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-                auto tmp = op(_pixel(fill, x0), *dst, 255);
-                *dst = op2(tmp, *dst);
-                rx += radial->a11;
-                ry += radial->a21;
-            }
-        } else {
-            for (uint32_t i = 0; i < len; ++i, ++dst) {
-                auto x0 = 0.5f * (rx * rx + ry * ry - radial->fr * radial->fr) / (radial->dr * radial->fr + rx * radial->dx + ry * radial->dy);
-                auto tmp = op(_pixel(fill, x0), *dst, 255);
-                auto tmp2 = op2(tmp, *dst);
-                *dst = INTERPOLATE(tmp2, *dst, a);
-                rx += radial->a11;
-                ry += radial->a21;
-            }
+    if (a == 255) {
+        for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
+            auto tmp = op(_pixel(fill, sqrtf(std::max(0.0f, det)) - b), *dst, 255);
+            *dst = op2(tmp, *dst);
+            det += deltaDet;
+            deltaDet += deltaDeltaDet;
+            b += deltaB;
         }
     } else {
-        float b, deltaB, det, deltaDet, deltaDeltaDet;
-        _calculateCoefficients(fill, x, y, b, deltaB, det, deltaDet, deltaDeltaDet);
-        if (a == 255) {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
-                auto tmp = op(_pixel(fill, sqrtf(det) - b), *dst, 255);
-                *dst = op2(tmp, *dst);
-                det += deltaDet;
-                deltaDet += deltaDeltaDet;
-                b += deltaB;
-            }
-        } else {
-            for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
-                auto tmp = op(_pixel(fill, sqrtf(det) - b), *dst, 255);
-                auto tmp2 = op2(tmp, *dst);
-                *dst = INTERPOLATE(tmp2, *dst, a);
-                det += deltaDet;
-                deltaDet += deltaDeltaDet;
-                b += deltaB;
-            }
+        for (uint32_t i = 0 ; i < len ; ++i, ++dst) {
+            auto tmp = op(_pixel(fill, sqrtf(std::max(0.0f, det)) - b), *dst, 255);
+            auto tmp2 = op2(tmp, *dst);
+            *dst = INTERPOLATE(tmp2, *dst, a);
+            det += deltaDet;
+            deltaDet += deltaDeltaDet;
+            b += deltaB;
         }
     }
 }
