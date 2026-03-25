@@ -306,6 +306,24 @@ static constexpr struct
 _PARSE_TAG(FillRule, fillRule, FillRule, fillRuleTags, FillRule::NonZero)
 
 
+/* parse the blend mode applied to an element.
+ * Value:   normal | multiply | screen | overlay | darken | lighten | color-dodge | color-burn |
+ *          hard-light | soft-light | difference | exclusion | hue | saturation | color | luminosity
+ * Initial:    normal
+ * https://www.w3.org/TR/compositing-1/#mix-blend-mode
+ */
+static constexpr struct
+{
+    SvgBlendMode blendMode;
+    const char* tag;
+} blendModeTags[] = {
+    { SvgBlendMode::Multiply, "multiply" }
+};
+
+
+_PARSE_TAG(SvgBlendMode, blendMode, BlendMode, blendModeTags, SvgBlendMode::Normal)
+
+
 /* parse the dash pattern used during stroking a path.
  * Value:   none | <dasharray> | inherit
  * Initial:    none
@@ -1039,6 +1057,12 @@ static void _handlePaintOrderAttr(TVG_UNUSED SvgLoaderData* loader, SvgNode* nod
 }
 
 
+static void _handleMixBlendModeAttr(TVG_UNUSED SvgLoaderData* loader, SvgNode* node, const char* value)
+{
+    node->style->blendMode = _toBlendMode(value);
+}
+
+
 static void _handleCssClassAttr(SvgLoaderData* loader, SvgNode* node, const char* value)
 {
     auto cssClass = &node->style->cssClass;
@@ -1082,7 +1106,8 @@ static constexpr struct
     STYLE_DEF(mask-type, MaskType, SvgStyleFlags::MaskType),
     STYLE_DEF(display, Display, SvgStyleFlags::Display),
     STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
-    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter)
+    STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
+    STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode)
 };
 
 
