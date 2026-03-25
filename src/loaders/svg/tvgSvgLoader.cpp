@@ -307,8 +307,7 @@ _PARSE_TAG(FillRule, fillRule, FillRule, fillRuleTags, FillRule::NonZero)
 
 
 /* parse the blend mode applied to an element.
- * Value:   normal | multiply | screen | overlay | darken | lighten | color-dodge | color-burn |
- *          hard-light | soft-light | difference | exclusion | hue | saturation | color | luminosity
+ * Value:   normal | multiply
  * Initial:    normal
  * https://www.w3.org/TR/compositing-1/#mix-blend-mode
  */
@@ -1060,6 +1059,7 @@ static void _handlePaintOrderAttr(TVG_UNUSED SvgLoaderData* loader, SvgNode* nod
 static void _handleMixBlendModeAttr(TVG_UNUSED SvgLoaderData* loader, SvgNode* node, const char* value)
 {
     node->style->blendMode = _toBlendMode(value);
+    node->style->flags |= SvgStyleFlags::BlendMode;
 }
 
 
@@ -2983,6 +2983,7 @@ static void _styleCopy(SvgStyleProperty* to, const SvgStyleProperty* from)
     if (from->flags & SvgStyleFlags::Opacity) to->opacity = from->opacity;
     if (from->flags & SvgStyleFlags::PaintOrder) to->paintOrder = from->paintOrder;
     if (from->flags & SvgStyleFlags::Display) to->display = from->display;
+    if (from->flags & SvgStyleFlags::BlendMode) to->blendMode = from->blendMode;
 
     //Fill
     to->fill.flags = (to->fill.flags | from->fill.flags);

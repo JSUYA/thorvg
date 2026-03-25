@@ -704,6 +704,8 @@ static Paint* _imageBuildHelper(SvgLoaderData& loaderData, SvgNode* node, const 
     if (node->transform) m = *node->transform * m;
     picture->transform(m);
 
+    if (node->style->flags & SvgStyleFlags::BlendMode) picture->blend(_toTvgBlendMethod(node->style->blendMode));
+
     auto p = _applyFilter(loaderData, picture, node, vBox, svgPath);
     return _applyComposition(loaderData, p, node, vBox, svgPath);
 }
@@ -950,6 +952,8 @@ static Paint* _textBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, c
     tvg::free(processedText);
 
     _applyTextFill(node->style, text, vBox);
+
+    if (node->style->flags & SvgStyleFlags::BlendMode) text->blend(_toTvgBlendMethod(node->style->blendMode));
 
     auto p = _applyFilter(loaderData, text, node, vBox, svgPath);
     return _applyComposition(loaderData, p, node, vBox, svgPath);
