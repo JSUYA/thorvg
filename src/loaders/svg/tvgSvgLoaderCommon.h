@@ -153,25 +153,6 @@ constexpr void operator|=(SvgStrokeFlags& a, const SvgStrokeFlags b)
     a = SvgStrokeFlags(int(a) | int(b));
 }
 
-enum class SvgBlendMode
-{
-    Normal = 0,
-    Multiply,
-    Screen,
-    Overlay,
-    Darken,
-    Lighten,
-    ColorDodge,
-    ColorBurn,
-    HardLight,
-    SoftLight,
-    Difference,
-    Exclusion,
-    Hue,
-    Saturation,
-    Color,
-    Luminosity
-};
 
 enum class SvgGradientType
 {
@@ -557,7 +538,7 @@ struct SvgStyleProperty
     bool curColorSet;
     bool paintOrder; //true if default (fill, stroke), false otherwise
     bool display;
-    SvgBlendMode blendMode;
+    BlendMethod blendMode;
 };
 
 struct SvgNode

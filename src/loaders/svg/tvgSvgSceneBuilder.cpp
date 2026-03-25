@@ -274,28 +274,6 @@ static bool _applyClip(SvgLoaderData& loaderData, Paint* paint, const SvgNode* n
 }
 
 
-static BlendMethod _toTvgBlendMethod(SvgBlendMode mode)
-{
-    switch (mode) {
-        case SvgBlendMode::Multiply:  return BlendMethod::Multiply;
-        case SvgBlendMode::Screen:    return BlendMethod::Screen;
-        case SvgBlendMode::Overlay:   return BlendMethod::Overlay;
-        case SvgBlendMode::Darken:    return BlendMethod::Darken;
-        case SvgBlendMode::Lighten:   return BlendMethod::Lighten;
-        case SvgBlendMode::ColorDodge: return BlendMethod::ColorDodge;
-        case SvgBlendMode::ColorBurn:  return BlendMethod::ColorBurn;
-        case SvgBlendMode::HardLight:  return BlendMethod::HardLight;
-        case SvgBlendMode::SoftLight:  return BlendMethod::SoftLight;
-        case SvgBlendMode::Difference: return BlendMethod::Difference;
-        case SvgBlendMode::Exclusion:  return BlendMethod::Exclusion;
-        case SvgBlendMode::Hue:        return BlendMethod::Hue;
-        case SvgBlendMode::Saturation: return BlendMethod::Saturation;
-        case SvgBlendMode::Color:      return BlendMethod::Color;
-        case SvgBlendMode::Luminosity: return BlendMethod::Luminosity;
-        default:                       return BlendMethod::Normal;
-    }
-}
-
 
 static Paint* _applyComposition(SvgLoaderData& loaderData, Paint* paint, const SvgNode* node, const Box& vBox, const string& svgPath)
 {
@@ -432,7 +410,7 @@ static Paint* _applyProperty(SvgLoaderData& loaderData, SvgNode* node, Shape* vg
     vg->fillRule(style->fill.fillRule);
     vg->order(!style->paintOrder);
     vg->opacity(style->opacity);
-    if (style->flags & SvgStyleFlags::BlendMode) vg->blend(_toTvgBlendMethod(style->blendMode));
+    if (style->flags & SvgStyleFlags::BlendMode) vg->blend(style->blendMode);
 
     if (node->type == SvgNodeType::G || node->type == SvgNodeType::Use) return vg;
 
@@ -704,7 +682,7 @@ static Paint* _imageBuildHelper(SvgLoaderData& loaderData, SvgNode* node, const 
     if (node->transform) m = *node->transform * m;
     picture->transform(m);
 
-    if (node->style->flags & SvgStyleFlags::BlendMode) picture->blend(_toTvgBlendMethod(node->style->blendMode));
+    if (node->style->flags & SvgStyleFlags::BlendMode) picture->blend(node->style->blendMode);
 
     auto p = _applyFilter(loaderData, picture, node, vBox, svgPath);
     return _applyComposition(loaderData, p, node, vBox, svgPath);
@@ -953,7 +931,7 @@ static Paint* _textBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, c
 
     _applyTextFill(node->style, text, vBox);
 
-    if (node->style->flags & SvgStyleFlags::BlendMode) text->blend(_toTvgBlendMethod(node->style->blendMode));
+    if (node->style->flags & SvgStyleFlags::BlendMode) text->blend(node->style->blendMode);
 
     auto p = _applyFilter(loaderData, text, node, vBox, svgPath);
     return _applyComposition(loaderData, p, node, vBox, svgPath);
@@ -1004,7 +982,7 @@ static Scene* _sceneBuildHelper(SvgLoaderData& loaderData, const SvgNode* node, 
         }
     }
     scene->opacity(node->style->opacity);
-    if (node->style->flags & SvgStyleFlags::BlendMode) scene->blend(_toTvgBlendMethod(node->style->blendMode));
+    if (node->style->flags & SvgStyleFlags::BlendMode) scene->blend(node->style->blendMode);
 
     auto p = _applyFilter(loaderData, scene, node, vBox, svgPath);
     return static_cast<Scene*>(_applyComposition(loaderData, p, node, vBox, svgPath));
