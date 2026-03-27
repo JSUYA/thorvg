@@ -413,6 +413,22 @@ struct SvgTextNode
     float fontSize;
 };
 
+enum class SvgFilterInputType
+{
+    None = 0,
+    SourceGraphic,
+    SourceAlpha,
+    BackgroundImage,
+    BackgroundAlpha,
+    PrimitiveRef
+};
+
+struct SvgFilterInput
+{
+    SvgFilterInputType type = SvgFilterInputType::None;
+    char* name = nullptr;
+};
+
 struct SvgGaussianBlurNode
 {
     float stdDevX, stdDevY;
@@ -420,11 +436,16 @@ struct SvgGaussianBlurNode
     bool isPercentage[4];
     bool hasBox;
     bool edgeModeWrap;
+    SvgFilterInput in;
+    char* result;
 };
 
 struct SvgBlendNode
 {
     BlendMethod mode;
+    SvgFilterInput in;
+    SvgFilterInput in2;
+    char* result;
 };
 
 struct SvgFilterNode

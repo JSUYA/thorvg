@@ -1376,6 +1376,20 @@ static void _parseGaussianBlurStdDeviation(const char** content, float* x, float
 }
 
 
+static void _parseFilterInput(SvgFilterInput* input, const char* value)
+{
+    if (STR_AS(value, "SourceGraphic"))       input->type = SvgFilterInputType::SourceGraphic;
+    else if (STR_AS(value, "SourceAlpha"))     input->type = SvgFilterInputType::SourceAlpha;
+    else if (STR_AS(value, "BackgroundImage")) input->type = SvgFilterInputType::BackgroundImage;
+    else if (STR_AS(value, "BackgroundAlpha")) input->type = SvgFilterInputType::BackgroundAlpha;
+    else {
+        input->type = SvgFilterInputType::PrimitiveRef;
+        tvg::free(input->name);
+        input->name = duplicate(value);
+    }
+}
+
+
 static bool _attrParseGaussianBlurNode(void* data, const char* key, const char* value)
 {
     SvgLoaderData* loader = (SvgLoaderData*)data;
@@ -1390,6 +1404,11 @@ static bool _attrParseGaussianBlurNode(void* data, const char* key, const char* 
         _parseGaussianBlurStdDeviation(&value, &gaussianBlur->stdDevX, &gaussianBlur->stdDevY);
     } else if (STR_AS(key, "edgeMode")) {
         if (STR_AS(value, "wrap")) gaussianBlur->edgeModeWrap = true;
+    } else if (STR_AS(key, "in")) {
+        _parseFilterInput(&gaussianBlur->in, value);
+    } else if (STR_AS(key, "result")) {
+        tvg::free(gaussianBlur->result);
+        gaussianBlur->result = duplicate(value);
     } else return _parseStyleAttr(loader, key, value, false);
     return true;
 }
@@ -1539,6 +1558,12 @@ static bool _attrParseBlendNode(void* data, const char* key, const char* value)
 
     if (STR_AS(key, "id")) _copyId(&node->id, value);
     else if (STR_AS(key, "mode")) node->node.blend.mode = _toBlendMode(value);
+    else if (STR_AS(key, "in")) _parseFilterInput(&node->node.blend.in, value);
+    else if (STR_AS(key, "in2")) _parseFilterInput(&node->node.blend.in2, value);
+    else if (STR_AS(key, "result")) {
+        tvg::free(node->node.blend.result);
+        node->node.blend.result = duplicate(value);
+    }
     else return _parseStyleAttr(loader, key, value, false);
     return true;
 }
@@ -3449,6 +3474,17 @@ static void _free(SvgNode* node)
          case SvgNodeType::Text: {
              tvg::free(node->node.text.text);
              tvg::free(node->node.text.fontFamily);
+             break;
+         }
+         case SvgNodeType::GaussianBlur: {
+             tvg::free(node->node.gaussianBlur.in.name);
+             tvg::free(node->node.gaussianBlur.result);
+             break;
+         }
+         case SvgNodeType::Blend: {
+             tvg::free(node->node.blend.in.name);
+             tvg::free(node->node.blend.in2.name);
+             tvg::free(node->node.blend.result);
              break;
          }
          default: {

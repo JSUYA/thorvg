@@ -322,6 +322,20 @@ static Paint* _applyComposition(SvgLoaderData& loaderData, Paint* paint, const S
 }
 
 
+static bool _isSourceGraphic(const SvgFilterInput& input)
+{
+    return input.type == SvgFilterInputType::None || input.type == SvgFilterInputType::SourceGraphic;
+}
+
+
+static bool _refersTo(const SvgFilterInput& input, const char* resultName)
+{
+    if (!resultName) return false;
+    if (input.type == SvgFilterInputType::PrimitiveRef && input.name) return STR_AS(input.name, resultName);
+    return false;
+}
+
+
 static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNode* node, const Box& vBox, const string& svgPath)
 {
     auto filterNode = node->style->filter.node;
@@ -335,6 +349,9 @@ static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNod
     auto primitiveUserSpace = filter.primitiveUserSpace;
     auto sx = paint->transform().e11;
     auto sy = paint->transform().e22;
+
+    const char* lastResultName = nullptr;
+    bool hasBlur = false;
 
     auto child = filterNode->child.data;
     for (uint32_t i = 0; i < filterNode->child.count; ++i, ++child) {
@@ -368,9 +385,32 @@ static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNod
                 stdDevY *= bbox.h;
             }
             scene->add(SceneEffect::GaussianBlur, (double)(1.25f * (direction == 2 ? stdDevY * sy : stdDevX * sx)), direction, gauss.edgeModeWrap, 55);
+            hasBlur = true;
+            lastResultName = gauss.result;
         } else if ((*child)->type == SvgNodeType::Blend) {
-            auto mode = (*child)->node.blend.mode;
-            if (mode != BlendMethod::Normal) paint->blend(mode);
+            auto& blend = (*child)->node.blend;
+            auto mode = blend.mode;
+            if (mode == BlendMethod::Normal) continue;
+
+            //Resolve inputs: check if feBlend references a previous result (e.g. blur)
+            auto& in1 = blend.in;
+            auto& in2 = blend.in2;
+
+            bool in1RefsPrev = (in1.type == SvgFilterInputType::None && i > 0) ||
+                               _refersTo(in1, lastResultName);
+            bool in2RefsPrev = (in2.type == SvgFilterInputType::None && i > 0) ||
+                               _refersTo(in2, lastResultName);
+
+            //feBlend in=SourceGraphic in2=<prev> or in=<prev> in2=SourceGraphic:
+            //Apply blend to the scene (blurred content blends with backdrop)
+            if (hasBlur && ((_isSourceGraphic(in1) && in2RefsPrev) ||
+                            (in1RefsPrev && _isSourceGraphic(in2)))) {
+                scene->blend(mode);
+            } else {
+                //Fallback: no chaining context, apply blend to paint directly
+                paint->blend(mode);
+            }
+            lastResultName = blend.result;
         }
     }
 
