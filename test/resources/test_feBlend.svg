@@ -1,0 +1,271 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="900" viewBox="0 0 800 900">
+  <title>feBlend Filter Primitive Test</title>
+
+  <defs>
+    <!-- Simple feBlend filters with BackgroundImage -->
+    <filter id="blend-multiply">
+      <feBlend mode="multiply" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-screen">
+      <feBlend mode="screen" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-overlay">
+      <feBlend mode="overlay" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-darken">
+      <feBlend mode="darken" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-lighten">
+      <feBlend mode="lighten" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-color-dodge">
+      <feBlend mode="color-dodge" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-color-burn">
+      <feBlend mode="color-burn" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-hard-light">
+      <feBlend mode="hard-light" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-soft-light">
+      <feBlend mode="soft-light" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-difference">
+      <feBlend mode="difference" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-exclusion">
+      <feBlend mode="exclusion" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-hue">
+      <feBlend mode="hue" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-saturation">
+      <feBlend mode="saturation" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-color">
+      <feBlend mode="color" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+    <filter id="blend-luminosity">
+      <feBlend mode="luminosity" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+
+    <!-- Combined: feGaussianBlur + feBlend -->
+    <filter id="blur-then-blend">
+      <feGaussianBlur stdDeviation="3"/>
+      <feBlend mode="multiply" in="SourceGraphic" in2="BackgroundImage"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="900" fill="#f0f0f0"/>
+
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-family="sans-serif" fill="#333">feBlend Filter Primitive Test</text>
+
+  <!-- Row 1: normal(ref), multiply, screen, overlay, darken, lighten -->
+  <g transform="translate(10, 50)">
+    <!-- normal (reference) -->
+    <g transform="translate(0, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">normal</text>
+    </g>
+    <!-- multiply -->
+    <g transform="translate(130, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-multiply)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">multiply</text>
+    </g>
+    <!-- screen -->
+    <g transform="translate(260, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-screen)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">screen</text>
+    </g>
+    <!-- overlay -->
+    <g transform="translate(390, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-overlay)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">overlay</text>
+    </g>
+    <!-- darken -->
+    <g transform="translate(520, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-darken)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">darken</text>
+    </g>
+    <!-- lighten -->
+    <g transform="translate(650, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-lighten)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">lighten</text>
+    </g>
+  </g>
+
+  <!-- Row 2: color-dodge, color-burn, hard-light, soft-light, difference, exclusion -->
+  <g transform="translate(10, 180)">
+    <g transform="translate(0, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-color-dodge)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">color-dodge</text>
+    </g>
+    <g transform="translate(130, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-color-burn)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">color-burn</text>
+    </g>
+    <g transform="translate(260, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-hard-light)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">hard-light</text>
+    </g>
+    <g transform="translate(390, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-soft-light)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">soft-light</text>
+    </g>
+    <g transform="translate(520, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-difference)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">difference</text>
+    </g>
+    <g transform="translate(650, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-exclusion)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">exclusion</text>
+    </g>
+  </g>
+
+  <!-- Row 3: hue, saturation, color, luminosity, blur+blend combo -->
+  <g transform="translate(10, 310)">
+    <g transform="translate(0, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-hue)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">hue</text>
+    </g>
+    <g transform="translate(130, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-saturation)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">saturation</text>
+    </g>
+    <g transform="translate(260, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-color)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">color</text>
+    </g>
+    <g transform="translate(390, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blend-luminosity)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">luminosity</text>
+    </g>
+    <g transform="translate(520, 0)">
+      <rect width="120" height="80" fill="#FF4444"/>
+      <circle cx="80" cy="50" r="35" fill="#4444FF" filter="url(#blur-then-blend)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="10" font-family="sans-serif">blur+multiply</text>
+    </g>
+  </g>
+
+  <!-- Section 2: Visually distinct colors (yellow bg + cyan/magenta) -->
+  <text x="400" y="440" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">High-contrast Color Pairs</text>
+
+  <!-- Row 4: yellow bg + cyan circle with feBlend -->
+  <g transform="translate(10, 460)">
+    <g transform="translate(0, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#00FFFF" filter="url(#blend-multiply)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">multiply</text>
+    </g>
+    <g transform="translate(130, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#FF00FF" filter="url(#blend-multiply)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">multiply</text>
+    </g>
+    <g transform="translate(260, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#00FFFF" filter="url(#blend-screen)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">screen</text>
+    </g>
+    <g transform="translate(390, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#00FFFF" filter="url(#blend-difference)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">difference</text>
+    </g>
+    <g transform="translate(520, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#00FFFF" filter="url(#blend-exclusion)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">exclusion</text>
+    </g>
+    <g transform="translate(650, 0)">
+      <rect width="120" height="80" fill="#FFFF00"/>
+      <circle cx="60" cy="40" r="30" fill="#00FFFF" filter="url(#blend-overlay)"/>
+      <text x="60" y="95" text-anchor="middle" font-size="11" font-family="sans-serif">overlay</text>
+    </g>
+  </g>
+
+  <!-- Section 3: Complex DOM - nested groups with feBlend -->
+  <text x="400" y="600" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">Complex DOM: Nested Groups with feBlend</text>
+
+  <!-- Row 5: Group containing multiple shapes, filter applied to inner element -->
+  <g transform="translate(10, 620)">
+    <!-- Nested group: outer bg + inner group with overlapping shapes -->
+    <g transform="translate(0, 0)">
+      <rect width="240" height="120" fill="#E8B4B8" rx="8"/>
+      <g>
+        <rect x="20" y="15" width="80" height="90" fill="#2196F3" rx="4"/>
+        <rect x="70" y="15" width="80" height="90" fill="#FF9800" rx="4" filter="url(#blend-multiply)"/>
+        <circle cx="200" cy="60" r="40" fill="#4CAF50" filter="url(#blend-screen)"/>
+      </g>
+      <text x="120" y="138" text-anchor="middle" font-size="10" font-family="sans-serif">nested: multiply+screen</text>
+    </g>
+
+    <!-- Multiple feBlend on different elements in same group -->
+    <g transform="translate(270, 0)">
+      <rect width="240" height="120" fill="#B4D8E8" rx="8"/>
+      <circle cx="60" cy="60" r="45" fill="#E91E63" filter="url(#blend-overlay)"/>
+      <rect x="90" y="15" width="70" height="90" fill="#9C27B0" rx="4" filter="url(#blend-color-dodge)"/>
+      <circle cx="200" cy="60" r="40" fill="#FF5722" filter="url(#blend-hard-light)"/>
+      <text x="120" y="138" text-anchor="middle" font-size="10" font-family="sans-serif">mixed: overlay+dodge+hard</text>
+    </g>
+
+    <!-- feBlend on group with transformed children -->
+    <g transform="translate(540, 0)">
+      <rect width="240" height="120" fill="#D4E8B4" rx="8"/>
+      <g transform="translate(120, 60)">
+        <rect x="-50" y="-40" width="100" height="80" fill="#3F51B5" transform="rotate(15)" filter="url(#blend-difference)"/>
+        <circle cx="40" cy="0" r="35" fill="#CDDC39" filter="url(#blend-exclusion)"/>
+      </g>
+      <text x="120" y="138" text-anchor="middle" font-size="10" font-family="sans-serif">transformed: diff+excl</text>
+    </g>
+  </g>
+
+  <!-- Row 6: feBlend on various element types -->
+  <g transform="translate(10, 780)">
+    <!-- feBlend on path -->
+    <g transform="translate(0, 0)">
+      <rect width="160" height="80" fill="#FFD54F" rx="8"/>
+      <path d="M20,70 Q50,10 80,40 T140,30" stroke="#D32F2F" stroke-width="4" fill="none" filter="url(#blend-multiply)"/>
+      <text x="80" y="95" text-anchor="middle" font-size="10" font-family="sans-serif">path + multiply</text>
+    </g>
+
+    <!-- feBlend on polygon -->
+    <g transform="translate(180, 0)">
+      <rect width="160" height="80" fill="#CE93D8" rx="8"/>
+      <polygon points="80,10 140,30 130,70 30,70 20,30" fill="#1B5E20" filter="url(#blend-screen)"/>
+      <text x="80" y="95" text-anchor="middle" font-size="10" font-family="sans-serif">polygon + screen</text>
+    </g>
+
+    <!-- feBlend on ellipse -->
+    <g transform="translate(360, 0)">
+      <rect width="160" height="80" fill="#80DEEA" rx="8"/>
+      <ellipse cx="80" cy="40" rx="60" ry="30" fill="#BF360C" filter="url(#blend-soft-light)"/>
+      <text x="80" y="95" text-anchor="middle" font-size="10" font-family="sans-serif">ellipse + soft-light</text>
+    </g>
+
+    <!-- feBlend with opacity -->
+    <g transform="translate(540, 0)">
+      <rect width="160" height="80" fill="#A5D6A7" rx="8"/>
+      <rect x="20" y="10" width="120" height="60" fill="#311B92" opacity="0.7" rx="4" filter="url(#blend-color-burn)"/>
+      <text x="80" y="95" text-anchor="middle" font-size="10" font-family="sans-serif">opacity + color-burn</text>
+    </g>
+  </g>
+</svg>
