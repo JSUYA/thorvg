@@ -307,16 +307,31 @@ _PARSE_TAG(FillRule, fillRule, FillRule, fillRuleTags, FillRule::NonZero)
 
 
 /* parse the blend mode applied to an element.
- * Value:   normal | multiply
+ * Value:   normal | multiply | screen | overlay | darken | lighten | color-dodge | color-burn |
+ *          hard-light | soft-light | difference | exclusion | hue | saturation | color | luminosity
  * Initial:    normal
- * https://www.w3.org/TR/compositing-1/#mix-blend-mode
+ * https://www.w3.org/TR/compositing-1/#blending
  */
 static constexpr struct
 {
     BlendMethod blendMode;
     const char* tag;
 } blendModeTags[] = {
-    { BlendMethod::Multiply, "multiply" }
+    { BlendMethod::Multiply,   "multiply" },
+    { BlendMethod::Screen,     "screen" },
+    { BlendMethod::Overlay,    "overlay" },
+    { BlendMethod::Darken,     "darken" },
+    { BlendMethod::Lighten,    "lighten" },
+    { BlendMethod::ColorDodge, "color-dodge" },
+    { BlendMethod::ColorBurn,  "color-burn" },
+    { BlendMethod::HardLight,  "hard-light" },
+    { BlendMethod::SoftLight,  "soft-light" },
+    { BlendMethod::Difference, "difference" },
+    { BlendMethod::Exclusion,  "exclusion" },
+    { BlendMethod::Hue,        "hue" },
+    { BlendMethod::Saturation, "saturation" },
+    { BlendMethod::Color,      "color" },
+    { BlendMethod::Luminosity, "luminosity" }
 };
 
 
@@ -1517,6 +1532,32 @@ static SvgNode* _createGaussianBlurNode(SvgLoaderData* loader, SvgNode* parent, 
 }
 
 
+static bool _attrParseBlendNode(void* data, const char* key, const char* value)
+{
+    auto loader = (SvgLoaderData*)data;
+    auto node = loader->svgParse->node;
+
+    if (STR_AS(key, "id")) _copyId(&node->id, value);
+    else if (STR_AS(key, "mode")) node->node.blend.mode = _toBlendMode(value);
+    else return _parseStyleAttr(loader, key, value, false);
+    return true;
+}
+
+
+static SvgNode* _createBlendNode(SvgLoaderData* loader, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    loader->svgParse->node = _createNode(parent, SvgNodeType::Blend);
+    if (!loader->svgParse->node) return nullptr;
+
+    loader->svgParse->node->style->display = false;
+    loader->svgParse->node->node.blend.mode = BlendMethod::Normal;
+
+    func(buf, bufLength, _attrParseBlendNode, loader);
+
+    return loader->svgParse->node;
+}
+
+
 static SvgNode* _createFilterNode(SvgLoaderData* loader, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
 {
     loader->svgParse->node = _createNode(parent, SvgNodeType::Filter);
@@ -2173,7 +2214,8 @@ static constexpr struct
     {"line", sizeof("line"), _createLineNode},
     {"image", sizeof("image"), _createImageNode},
     {"text", sizeof("text"), _createTextNode},
-    {"feGaussianBlur", sizeof("feGaussianBlur"), _createGaussianBlurNode}
+    {"feGaussianBlur", sizeof("feGaussianBlur"), _createGaussianBlurNode},
+    {"feBlend", sizeof("feBlend"), _createBlendNode}
 };
 
 

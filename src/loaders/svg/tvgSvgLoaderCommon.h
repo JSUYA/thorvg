@@ -83,6 +83,7 @@ enum class SvgNodeType
     Symbol,
     Filter,
     GaussianBlur,
+    Blend,
     Unknown
 };
 
@@ -421,6 +422,11 @@ struct SvgGaussianBlurNode
     bool edgeModeWrap;
 };
 
+struct SvgBlendNode
+{
+    BlendMethod mode;
+};
+
 struct SvgFilterNode
 {
     Box box;
@@ -569,6 +575,7 @@ struct SvgNode
         SvgTextNode text;
         SvgFilterNode filter;
         SvgGaussianBlurNode gaussianBlur;
+        SvgBlendNode blend;
     } node;
     SvgXmlSpace xmlSpace = SvgXmlSpace::None;
     ~SvgNode();

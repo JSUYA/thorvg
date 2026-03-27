@@ -368,6 +368,9 @@ static Paint* _applyFilter(SvgLoaderData& loaderData, Paint* paint, const SvgNod
                 stdDevY *= bbox.h;
             }
             scene->add(SceneEffect::GaussianBlur, (double)(1.25f * (direction == 2 ? stdDevY * sy : stdDevX * sx)), direction, gauss.edgeModeWrap, 55);
+        } else if ((*child)->type == SvgNodeType::Blend) {
+            auto mode = (*child)->node.blend.mode;
+            if (mode != BlendMethod::Normal) paint->blend(mode);
         }
     }
 
