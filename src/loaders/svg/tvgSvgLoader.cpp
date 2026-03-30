@@ -3074,7 +3074,11 @@ static void _svgLoaderParserXmlClose(SvgParserContext* ctx, const char* content,
 
     for (unsigned int i = 0; i < sizeof(groupTags) / sizeof(groupTags[0]); i++) {
         if (!strncmp(tagName, groupTags[i].tag, sz)) {
-            ctx->stack.pop();
+            if (ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
+                ctx->gradientStack.pop();
+            } else {
+                ctx->stack.pop();
+            }
             break;
         }
     }
@@ -3086,16 +3090,25 @@ static void _svgLoaderParserXmlClose(SvgParserContext* ctx, const char* content,
         }
     }
 
-    //Pop the nullptr marker pushed by an invalid <stop> outside a gradient
+    //Pop the nullptr marker pushed by an invalid <stop> outside a gradient.
+    //Don't pop if inside a real gradient (the nullptr was from a skipped child element).
     if (STR_AS(tagName, "stop") && ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
-        ctx->gradientStack.pop();
+        bool insideGradient = false;
+        for (uint32_t i = 0; i < ctx->gradientStack.count; i++) {
+            if (ctx->gradientStack[i]) { insideGradient = true; break; }
+        }
+        if (!insideGradient) ctx->gradientStack.pop();
     }
 
     for (unsigned int i = 0; i < sizeof(graphicsTags) / sizeof(graphicsTags[0]); i++) {
         if (!strncmp(tagName, graphicsTags[i].tag, sz)) {
-            ctx->currentGraphicsNode = nullptr;
-            if (!strncmp(tagName, "text", 4)) ctx->openedTag = OpenedTagType::Other;
-            ctx->stack.pop();
+            if (ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
+                ctx->gradientStack.pop();
+            } else {
+                ctx->currentGraphicsNode = nullptr;
+                if (!strncmp(tagName, "text", 4)) ctx->openedTag = OpenedTagType::Other;
+                ctx->stack.pop();
+            }
             break;
         }
     }
@@ -3130,6 +3143,11 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
     }
 
     if ((method = _findGroupFactory(tagName))) {
+        //Per SVG spec, only stop/animate/set are valid children of gradient elements
+        if (ctx->gradientStack.count > 0) {
+            if (!empty) ctx->gradientStack.push(nullptr);
+            return;
+        }
         //Group
         if (empty) return;
         if (!ctx->doc) {
@@ -3159,6 +3177,11 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
             ctx->stack.push(node);
         }
     } else if ((method = _findGraphicsFactory(tagName))) {
+        //Per SVG spec, graphics elements are not valid children of gradient elements
+        if (ctx->gradientStack.count > 0) {
+            if (!empty) ctx->gradientStack.push(nullptr);
+            return;
+        }
         if (ctx->stack.count > 0) parent = ctx->stack.last();
         else parent = ctx->doc;
         node = method(ctx, parent, attrs, attrsLength, xmlParseAttributes);

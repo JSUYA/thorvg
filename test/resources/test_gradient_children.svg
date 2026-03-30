@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="500">
+
+  <!-- Test 1: Issue case - stops inside <g> should be ignored, circle inside gradient ignored -->
+  <linearGradient id="t1">
+    <stop stop-color="lime" />
+    <g>
+      <stop stop-color="yellow" offset="0.4" />
+      <circle r="3" cx="15" cy="1" />
+      <stop stop-color="orange" offset="0.8" />
+    </g>
+    <circle r="3" cx="1" cy="1" />
+  </linearGradient>
+  <rect x="10" y="10" width="80" height="80" fill="url(#t1)" stroke="black" />
+
+  <!-- Test 2: Valid gradient (all stops are direct children) -->
+  <defs>
+    <linearGradient id="t2">
+      <stop stop-color="red" offset="0" />
+      <stop stop-color="blue" offset="1" />
+    </linearGradient>
+  </defs>
+  <rect x="110" y="10" width="80" height="80" fill="url(#t2)" stroke="black" />
+
+  <!-- Test 3: Radial gradient with non-allowed children -->
+  <radialGradient id="t3" cx="0.5" cy="0.5" r="0.5">
+    <stop stop-color="#ff0000" offset="0" />
+    <rect x="0" y="0" width="10" height="10" />
+    <stop stop-color="#0000ff" offset="1" />
+  </radialGradient>
+  <!-- Only the two direct stops should apply; rect inside gradient ignored -->
+  <rect x="210" y="10" width="80" height="80" fill="url(#t3)" stroke="black" />
+
+  <!-- Test 4: Deeply nested stops (g > g > stop) - should be ignored -->
+  <linearGradient id="t4" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#00ff00" offset="0" />
+    <g>
+      <g>
+        <stop stop-color="#ff00ff" offset="0.5" />
+      </g>
+    </g>
+    <stop stop-color="#0000ff" offset="1" />
+  </linearGradient>
+  <rect x="310" y="10" width="80" height="80" fill="url(#t4)" stroke="black" />
+
+  <!-- Test 5: Stop after invalid children - should still be valid (direct child) -->
+  <linearGradient id="t5" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="red" offset="0" />
+    <g>
+      <stop stop-color="black" offset="0.5" />
+    </g>
+    <stop stop-color="green" offset="1" />
+  </linearGradient>
+  <!-- Should have red-to-green gradient (skip inner black stop in g) -->
+  <rect x="10" y="110" width="80" height="80" fill="url(#t5)" stroke="black" />
+
+  <!-- Test 6: Graphics elements inside gradient (circle, rect, path) - all ignored -->
+  <linearGradient id="t6" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#ff6600" offset="0" />
+    <circle cx="50" cy="50" r="20" fill="blue" />
+    <rect x="0" y="0" width="10" height="10" fill="red" />
+    <path d="M0,0 L10,10" />
+    <stop stop-color="#0066ff" offset="1" />
+  </linearGradient>
+  <rect x="110" y="110" width="80" height="80" fill="url(#t6)" stroke="black" />
+
+  <!-- Test 7: Defs inside gradient - should be ignored -->
+  <linearGradient id="t7" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#993399" offset="0" />
+    <defs>
+      <linearGradient id="should_not_exist">
+        <stop stop-color="black" offset="0" />
+        <stop stop-color="black" offset="1" />
+      </linearGradient>
+    </defs>
+    <stop stop-color="#339933" offset="1" />
+  </linearGradient>
+  <rect x="210" y="110" width="80" height="80" fill="url(#t7)" stroke="black" />
+
+  <!-- Test 8: Gradient inheriting via xlink:href (valid) - should work normally -->
+  <defs>
+    <linearGradient id="t8_base" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="cyan" offset="0" />
+      <stop stop-color="magenta" offset="1" />
+    </linearGradient>
+    <linearGradient id="t8" xlink:href="#t8_base" />
+  </defs>
+  <rect x="310" y="110" width="80" height="80" fill="url(#t8)" stroke="black" />
+
+  <!-- Test 9: Empty gradient with only non-allowed children -->
+  <linearGradient id="t9">
+    <g>
+      <stop stop-color="red" offset="0" />
+      <stop stop-color="blue" offset="1" />
+    </g>
+  </linearGradient>
+  <!-- No valid stops, should render as no gradient -->
+  <rect x="10" y="210" width="80" height="80" fill="url(#t9)" stroke="black" />
+
+  <!-- Test 10: Mixed valid and invalid in radial gradient -->
+  <radialGradient id="t10">
+    <stop stop-color="#ff0000" offset="0" />
+    <g>
+      <stop stop-color="#00ff00" offset="0.5" />
+    </g>
+    <stop stop-color="#0000ff" offset="1" />
+  </radialGradient>
+  <!-- Should have red-to-blue radial (no green) -->
+  <circle cx="150" cy="250" r="40" fill="url(#t10)" stroke="black" />
+
+  <!-- Test 11: Use element inside gradient - should be ignored -->
+  <defs>
+    <circle id="reusable" cx="0" cy="0" r="5" />
+  </defs>
+  <linearGradient id="t11" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#ffaa00" offset="0" />
+    <use xlink:href="#reusable" />
+    <stop stop-color="#00aaff" offset="1" />
+  </linearGradient>
+  <rect x="210" y="210" width="80" height="80" fill="url(#t11)" stroke="black" />
+
+  <!-- Test 12: Mask/clipPath inside gradient - should be ignored -->
+  <linearGradient id="t12" x1="0" y1="0" x2="0" y2="1">
+    <stop stop-color="#ee3333" offset="0" />
+    <mask id="m_in_grad">
+      <rect width="100" height="100" fill="white" />
+    </mask>
+    <clipPath id="c_in_grad">
+      <rect width="50" height="50" />
+    </clipPath>
+    <stop stop-color="#3333ee" offset="1" />
+  </linearGradient>
+  <rect x="310" y="210" width="80" height="80" fill="url(#t12)" stroke="black" />
+
+  <!-- Test 13: Gradient with only one direct stop and invalid children -->
+  <linearGradient id="t13">
+    <g><stop stop-color="yellow" offset="0" /></g>
+    <stop stop-color="purple" offset="0.5" />
+    <g><stop stop-color="cyan" offset="1" /></g>
+  </linearGradient>
+  <!-- Should have only the purple stop at 0.5 -->
+  <rect x="10" y="310" width="80" height="80" fill="url(#t13)" stroke="black" />
+
+  <!-- Test 14: Previous #3502 fix still works - gradient inside stop outside gradient -->
+  <stop>
+    <linearGradient id="t14_invalid">
+      <stop stop-color="#decaff" offset="0" />
+      <stop stop-color="#dad" offset="1" />
+    </linearGradient>
+  </stop>
+  <rect x="110" y="310" width="80" height="80" fill="url(#t14_invalid)" stroke="black" />
+
+  <!-- Test 15: Symbol inside gradient - should be ignored -->
+  <linearGradient id="t15" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#00cc00" offset="0" />
+    <symbol id="sym_in_grad">
+      <rect width="100" height="100" fill="red" />
+    </symbol>
+    <stop stop-color="#cc0000" offset="1" />
+  </linearGradient>
+  <rect x="210" y="310" width="80" height="80" fill="url(#t15)" stroke="black" />
+
+  <!-- Test 16: Text element inside gradient - should be ignored -->
+  <linearGradient id="t16" x1="0" y1="0" x2="1" y2="0">
+    <stop stop-color="#4488cc" offset="0" />
+    <text x="10" y="20">ignored text</text>
+    <stop stop-color="#cc8844" offset="1" />
+  </linearGradient>
+  <rect x="310" y="310" width="80" height="80" fill="url(#t16)" stroke="black" />
+
+</svg>
