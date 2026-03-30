@@ -1,0 +1,113 @@
+<!--
+  Test: General invalid element hierarchy handling.
+  Per SVG spec, elements declared outside their valid parent context should be ignored.
+  This tests the skipDepth mechanism that skips entire subtrees of invalid content.
+
+  Cases:
+  1. <stop> outside any gradient (standalone) - must be ignored
+  2. <stop> outside gradient but wrapping children - subtree must be skipped
+  3. <g> inside linearGradient - must be ignored, stop after it still works
+  4. <rect> inside radialGradient - must be ignored
+  5. Nested gradient inside gradient - inner gradient ignored
+  6. Deep nesting inside gradient (<g><g><rect/></g></g>) - all skipped
+  7. <use> inside gradient - must be ignored
+  8. <clipPath> inside gradient - must be ignored
+  9. Normal gradient after invalid content - must still work correctly
+  10. Mixed valid stops and invalid elements inside gradient
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Case 1-2: <stop> outside gradient (must be silently ignored) -->
+    <stop offset="0%" stop-color="black"/>
+    <stop offset="100%" stop-color="white">
+      <!-- Subtree of invalid stop must be skipped -->
+      <rect x="0" y="0" width="10" height="10"/>
+    </stop>
+
+    <!-- Case 3: <g> inside linearGradient -->
+    <linearGradient id="lg1">
+      <stop offset="0%" stop-color="red"/>
+      <g>
+        <stop offset="50%" stop-color="green"/>
+        <rect x="0" y="0" width="100" height="100"/>
+      </g>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Case 4: <rect> inside radialGradient -->
+    <radialGradient id="rg1">
+      <stop offset="0%" stop-color="white"/>
+      <rect x="0" y="0" width="50" height="50"/>
+      <stop offset="100%" stop-color="purple"/>
+    </radialGradient>
+
+    <!-- Case 5: Nested gradient inside gradient -->
+    <linearGradient id="lg2">
+      <stop offset="0%" stop-color="yellow"/>
+      <linearGradient id="lg_inner">
+        <stop offset="0%" stop-color="black"/>
+        <stop offset="100%" stop-color="black"/>
+      </linearGradient>
+      <stop offset="100%" stop-color="green"/>
+    </linearGradient>
+
+    <!-- Case 6: Deep nesting inside gradient -->
+    <linearGradient id="lg3">
+      <stop offset="0%" stop-color="orange"/>
+      <g>
+        <g>
+          <rect x="0" y="0" width="10" height="10"/>
+          <circle cx="5" cy="5" r="5"/>
+        </g>
+      </g>
+      <stop offset="100%" stop-color="cyan"/>
+    </linearGradient>
+
+    <!-- Case 7-8: use and clipPath inside gradient -->
+    <linearGradient id="lg4">
+      <stop offset="0%" stop-color="pink"/>
+      <use href="#lg1"/>
+      <clipPath id="inner_clip">
+        <rect x="0" y="0" width="50" height="50"/>
+      </clipPath>
+      <stop offset="100%" stop-color="brown"/>
+    </linearGradient>
+
+    <!-- Case 9: Normal gradient (must work after all the invalid content above) -->
+    <linearGradient id="lg_normal">
+      <stop offset="0%" stop-color="lime"/>
+      <stop offset="100%" stop-color="navy"/>
+    </linearGradient>
+
+    <!-- Case 10: Mixed valid/invalid inside gradient -->
+    <radialGradient id="rg2">
+      <stop offset="0%" stop-color="gold"/>
+      <rect width="10" height="10"/>
+      <stop offset="50%" stop-color="red"/>
+      <g><circle r="5"/></g>
+      <stop offset="100%" stop-color="darkblue"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Render shapes using the gradients to verify they work correctly -->
+  <!-- Case 3: lg1 should have red→blue (2 stops, middle green is inside <g> so skipped) -->
+  <rect x="10" y="10" width="180" height="80" fill="url(#lg1)"/>
+
+  <!-- Case 4: rg1 should have white→purple (rect inside is skipped) -->
+  <circle cx="300" cy="50" r="40" fill="url(#rg1)"/>
+
+  <!-- Case 5: lg2 should have yellow→green (inner gradient skipped) -->
+  <rect x="10" y="110" width="180" height="80" fill="url(#lg2)"/>
+
+  <!-- Case 6: lg3 should have orange→cyan (deep nesting skipped) -->
+  <rect x="210" y="110" width="180" height="80" fill="url(#lg3)"/>
+
+  <!-- Case 7-8: lg4 should have pink→brown (use and clipPath skipped) -->
+  <rect x="10" y="210" width="180" height="80" fill="url(#lg4)"/>
+
+  <!-- Case 9: lg_normal should work normally -->
+  <rect x="210" y="210" width="180" height="80" fill="url(#lg_normal)"/>
+
+  <!-- Case 10: rg2 should have gold→red→darkblue (3 stops, graphics skipped) -->
+  <circle cx="200" cy="350" r="40" fill="url(#rg2)"/>
+</svg>

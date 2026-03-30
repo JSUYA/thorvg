@@ -3072,6 +3072,12 @@ static void _svgLoaderParserXmlClose(SvgParserContext* ctx, const char* content,
     }
     else return;
 
+    //Closing a tag inside an invalid element hierarchy (nullptr marker on gradientStack)
+    if (ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
+        ctx->gradientStack.pop();
+        return;
+    }
+
     for (unsigned int i = 0; i < sizeof(groupTags) / sizeof(groupTags[0]); i++) {
         if (!strncmp(tagName, groupTags[i].tag, sz)) {
             ctx->stack.pop();
@@ -3122,6 +3128,36 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
         strncpy(tagName, content, sz);
         tagName[sz] = '\0';
         attrsLength = length - sz;
+    }
+
+    //A nullptr on the gradientStack marks content inside an invalid element hierarchy.
+    //Push another nullptr to track depth; the close handler pops it back.
+    if (ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
+        if (!empty) ctx->gradientStack.push(nullptr);
+        return;
+    }
+
+    //Per SVG spec, <stop> is only valid inside gradient elements.
+    if (STR_AS(tagName, "stop")) {
+        if (ctx->gradientStack.count == 0) {
+            TVGLOG("SVG", "Ignoring <%s> declared outside of a gradient element", tagName);
+            if (!empty) ctx->gradientStack.push(nullptr);
+            return;
+        }
+        ctx->parser->gradStop = {0.0f, 0, 0, 0, 255};
+        ctx->parser->flags = SvgStopStyleFlags::StopDefault;
+        xmlParseAttributes(attrs, attrsLength, _attrParseStops, ctx);
+        ctx->gradientStack.last()->stops.push(ctx->parser->gradStop);
+        return;
+    }
+
+    //Per SVG spec (section 13.2), gradients only accept <stop> as children
+    //(descriptive/animation elements are not processed by thorvg).
+    //Skip any other element and its subtree.
+    if (ctx->gradientStack.count > 0) {
+        TVGLOG("SVG", "Ignoring <%s> declared inside a gradient element", tagName);
+        if (!empty) ctx->gradientStack.push(nullptr);
+        return;
     }
 
     if ((method = _findGroupFactory(tagName))) {
@@ -3181,16 +3217,6 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
             }
         }
         if (!empty) ctx->gradientStack.push(gradient);
-    } else if (STR_AS(tagName, "stop")) {
-        if (ctx->gradientStack.count == 0) {
-            TVGLOG("SVG", "Stop element is used outside of the Gradient element");
-            return;
-        }
-        /* default value for opacity */
-        ctx->parser->gradStop = {0.0f, 0, 0, 0, 255};
-        ctx->parser->flags = SvgStopStyleFlags::StopDefault;
-        xmlParseAttributes(attrs, attrsLength, _attrParseStops, ctx);
-        ctx->gradientStack.last()->stops.push(ctx->parser->gradStop);
     } else {
         if (!isIgnoreUnsupportedLogElements(tagName)) TVGLOG("SVG", "Unsupported elements used [Elements: %s]", tagName);
     }
