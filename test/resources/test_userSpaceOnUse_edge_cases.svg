@@ -1,0 +1,88 @@
+<!--
+  Test: userSpaceOnUse gradient edge cases.
+  Cases:
+    1. SVG with width only (height derived from content)
+    2. SVG with height only (width derived from content)
+    3. Zero-offset gradient stops with userSpaceOnUse
+    4. Single-stop gradient (degenerate)
+    5. Gradient with all coordinates at 0 (degenerate)
+    6. Very large absolute coordinates
+    7. Negative absolute coordinates
+    8. Gradient applied to both fill AND stroke on same shape
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="400">
+  <defs>
+    <!-- Vertical gradient: height unknown at parse time -->
+    <linearGradient id="vGrad" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="yellow"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- objectBoundingBox (must NOT be affected) -->
+    <linearGradient id="obbGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="green"/>
+    </linearGradient>
+
+    <!-- Gradient with gradientTransform -->
+    <linearGradient id="xfGrad" x1="0%" y1="0%" x2="100%" y2="0%"
+                    gradientUnits="userSpaceOnUse" gradientTransform="rotate(45, 200, 75)">
+      <stop offset="0%" stop-color="orange"/>
+      <stop offset="100%" stop-color="purple"/>
+    </linearGradient>
+
+    <!-- Radial with focal offset -->
+    <radialGradient id="focalGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="navy"/>
+    </radialGradient>
+
+    <!-- Degenerate: all coords at 0% -->
+    <linearGradient id="zeroGrad" x1="0%" y1="0%" x2="0%" y2="0%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Negative absolute coordinates -->
+    <linearGradient id="negGrad" x1="-50" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="pink"/>
+      <stop offset="100%" stop-color="brown"/>
+    </linearGradient>
+
+    <!-- Fill AND stroke gradient -->
+    <linearGradient id="fillGrad" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="lime"/>
+      <stop offset="100%" stop-color="purple"/>
+    </linearGradient>
+    <linearGradient id="strokeGrad" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Vertical gradient (height derived from content) -->
+  <rect x="0" y="0" width="400" height="100" fill="url(#vGrad)"/>
+
+  <!-- 2. objectBoundingBox (must render normally) -->
+  <rect x="0" y="110" width="400" height="100" fill="url(#obbGrad)"/>
+
+  <!-- 3. gradientTransform -->
+  <rect x="0" y="220" width="400" height="100" fill="url(#xfGrad)"/>
+
+  <!-- 4. Both types coexisting -->
+  <rect x="0" y="330" width="200" height="80" fill="url(#vGrad)"/>
+  <rect x="200" y="330" width="200" height="80" fill="url(#obbGrad)"/>
+
+  <!-- 5. Radial with focal point -->
+  <circle cx="200" cy="470" r="60" fill="url(#focalGrad)"/>
+
+  <!-- 6. Degenerate (all zero coords) -->
+  <rect x="0" y="540" width="400" height="40" fill="url(#zeroGrad)"/>
+
+  <!-- 7. Negative absolute coordinates -->
+  <rect x="0" y="590" width="400" height="40" fill="url(#negGrad)"/>
+
+  <!-- 8. Fill AND stroke gradient on same shape -->
+  <rect x="10" y="640" width="380" height="50" fill="url(#fillGrad)" stroke="url(#strokeGrad)" stroke-width="6"/>
+</svg>
