@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+
+  <!-- Valid: gradient in defs (should render gradient) -->
+  <defs>
+    <linearGradient id="valid_defs">
+      <stop stop-color="#00ff00" offset="0"/>
+      <stop stop-color="#0000ff" offset="1"/>
+    </linearGradient>
+    <radialGradient id="valid_radial_defs">
+      <stop stop-color="#ff0000" offset="0"/>
+      <stop stop-color="#0000ff" offset="1"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Valid: gradient in svg root (should render gradient) -->
+  <linearGradient id="valid_svg_root">
+    <stop stop-color="#ff0000" offset="0"/>
+    <stop stop-color="#00ff00" offset="1"/>
+  </linearGradient>
+
+  <!-- INVALID: gradient inside orphan stop (should render as none/black) -->
+  <stop>
+    <linearGradient id="invalid_stop_linear">
+      <stop stop-color="#decaff" offset="0"/>
+      <stop stop-color="#dad" offset="1"/>
+    </linearGradient>
+  </stop>
+
+  <!-- INVALID: radialGradient inside orphan stop (should render as none/black) -->
+  <stop>
+    <radialGradient id="invalid_stop_radial">
+      <stop stop-color="#ff00ff" offset="0"/>
+      <stop stop-color="#00ffff" offset="1"/>
+    </radialGradient>
+  </stop>
+
+  <!-- INVALID: gradient inside deeply nested orphan stops -->
+  <stop>
+    <stop>
+      <linearGradient id="invalid_nested_stops">
+        <stop stop-color="#ffff00" offset="0"/>
+        <stop stop-color="#ff00ff" offset="1"/>
+      </linearGradient>
+    </stop>
+  </stop>
+
+  <!-- INVALID: gradient inside orphan stop with self-closing outer stop -->
+  <stop/>
+  <linearGradient id="valid_after_empty_stop">
+    <stop stop-color="#aabbcc" offset="0"/>
+    <stop stop-color="#ccbbaa" offset="1"/>
+  </linearGradient>
+
+  <!-- Valid: gradient inside g element (should render gradient) -->
+  <g>
+    <linearGradient id="valid_in_g">
+      <stop stop-color="#112233" offset="0"/>
+      <stop stop-color="#445566" offset="1"/>
+    </linearGradient>
+  </g>
+
+  <!-- Row 1: Valid gradients -->
+  <rect x="10" y="10" width="80" height="80" fill="url(#valid_defs)"/>
+  <rect x="110" y="10" width="80" height="80" fill="url(#valid_radial_defs)"/>
+  <rect x="210" y="10" width="80" height="80" fill="url(#valid_svg_root)"/>
+
+  <!-- Row 2: Invalid gradients (should NOT render gradient) -->
+  <circle cx="50" cy="160" r="40" fill="url(#invalid_stop_linear)"/>
+  <circle cx="160" cy="160" r="40" fill="url(#invalid_stop_radial)"/>
+  <circle cx="270" cy="160" r="40" fill="url(#invalid_nested_stops)"/>
+
+  <!-- Row 3: Edge cases -->
+  <rect x="10" y="220" width="80" height="80" fill="url(#valid_after_empty_stop)"/>
+  <rect x="110" y="220" width="80" height="80" fill="url(#valid_in_g)"/>
+
+</svg>

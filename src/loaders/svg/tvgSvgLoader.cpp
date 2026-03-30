@@ -3371,6 +3371,11 @@ static void _svgLoaderParserXmlClose(SvgLoaderData* loader, const char* content,
     }
     else return;
 
+    if (loader->ignoreDepth > 0) {
+        loader->ignoreDepth--;
+        return;
+    }
+
     for (unsigned int i = 0; i < sizeof(groupTags) / sizeof(groupTags[0]); i++) {
         if (!strncmp(tagName, groupTags[i].tag, sz)) {
             loader->stack.pop();
@@ -3425,6 +3430,12 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
         strncpy(tagName, content, sz);
         tagName[sz] = '\0';
         attrsLength = length - sz;
+    }
+
+    //Skip all children inside elements whose content should be ignored
+    if (loader->ignoreDepth > 0) {
+        if (!empty) loader->ignoreDepth++;
+        return;
     }
 
     if ((method = _findGroupFactory(tagName))) {
@@ -3486,6 +3497,7 @@ static void _svgLoaderParserXmlOpen(SvgLoaderData* loader, const char* content, 
         if (!empty) loader->gradientStack.push(gradient);
     } else if (STR_AS(tagName, "stop")) {
         if (loader->gradientStack.count == 0) {
+            if (!empty) loader->ignoreDepth++;
             TVGLOG("SVG", "Stop element is used outside of the Gradient element");
             return;
         }

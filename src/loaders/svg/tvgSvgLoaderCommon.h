@@ -647,6 +647,7 @@ struct SvgLoaderData
     bool result = false;
     OpenedTagType openedTag = OpenedTagType::Other;
     SvgNode* currentGraphicsNode = nullptr;
+    int ignoreDepth = 0;       //depth of elements whose children should be ignored (e.g. orphan stops)
 };
 
 #endif
