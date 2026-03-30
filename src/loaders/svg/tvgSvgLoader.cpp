@@ -3706,6 +3706,7 @@ void SvgParserContext::clear(bool all)
     }
     gradients.reset();
     gradientStack.reset();
+    gradFixups.reset();
 
     _free(doc);
     doc = nullptr;

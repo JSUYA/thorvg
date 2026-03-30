@@ -596,6 +596,15 @@ enum struct OpenedTagType : uint8_t
     Text
 };
 
+struct SvgGradFixup
+{
+    Paint* paint;
+    SvgStyleGradient* grad;
+    int opacity;
+    bool isText;
+    bool isFill;
+};
+
 struct SvgParserContext
 {
     SvgParser* parser = nullptr;
@@ -610,7 +619,9 @@ struct SvgParserContext
     Array<SvgNodeIdPair> nodesToStyle;
     Array<char*> images;        //embedded images
     Array<FontFace> fonts;
+    Array<SvgGradFixup> gradFixups;
     OpenedTagType openedTag = OpenedTagType::Other;
+    bool needGradFixup = false;
 
     void clear(bool all);
 };

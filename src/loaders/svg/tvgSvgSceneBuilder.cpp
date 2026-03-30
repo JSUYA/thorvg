@@ -67,7 +67,7 @@ static void _transformMultiply(const Matrix* mBBox, Matrix* gradTransf)
 }
 
 
-static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity)
+static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity, bool knownW = true, bool knownH = true)
 {
     Fill::ColorStop* stops;
     auto fillGrad = LinearGradient::gen();
@@ -75,18 +75,23 @@ static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const B
     auto& finalTransform = fillGrad->transform();
     if (isTransform) finalTransform = *g->transform;
 
+    auto x1 = g->linear.x1;
+    auto y1 = g->linear.y1;
+    auto x2 = g->linear.x2;
+    auto y2 = g->linear.y2;
+
     if (g->userSpace) {
-        g->linear.x1 = g->linear.x1 * vBox.w;
-        g->linear.y1 = g->linear.y1 * vBox.h;
-        g->linear.x2 = g->linear.x2 * vBox.w;
-        g->linear.y2 = g->linear.y2 * vBox.h;
+        if (knownW || g->linear.isX1Percentage) x1 *= vBox.w;
+        if (knownH || g->linear.isY1Percentage) y1 *= vBox.h;
+        if (knownW || g->linear.isX2Percentage) x2 *= vBox.w;
+        if (knownH || g->linear.isY2Percentage) y2 *= vBox.h;
     } else {
         Matrix m = {vBox.w, 0, vBox.x, 0, vBox.h, vBox.y, 0, 0, 1};
         if (isTransform) _transformMultiply(&m, &finalTransform);
         else finalTransform = m;
     }
 
-    fillGrad->linear(g->linear.x1, g->linear.y1, g->linear.x2, g->linear.y2);
+    fillGrad->linear(x1, y1, x2, y2);
     fillGrad->spread(g->spread);
 
     //Update the stops
@@ -113,7 +118,7 @@ static LinearGradient* _applyLinearGradientProperty(SvgStyleGradient* g, const B
 }
 
 
-static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity)
+static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const Box& vBox, int opacity, bool knownW = true, bool knownH = true)
 {
     Fill::ColorStop *stops;
     auto fillGrad = RadialGradient::gen();
@@ -121,22 +126,31 @@ static RadialGradient* _applyRadialGradientProperty(SvgStyleGradient* g, const B
     auto& finalTransform = fillGrad->transform();
     if (isTransform) finalTransform = *g->transform;
 
+    auto cx = g->radial.cx;
+    auto cy = g->radial.cy;
+    auto r = g->radial.r;
+    auto fx = g->radial.fx;
+    auto fy = g->radial.fy;
+    auto fr = g->radial.fr;
+
     if (g->userSpace) {
         //The radius scaling is done according to the Units section:
         //https://www.w3.org/TR/2015/WD-SVG2-20150915/coords.html
-        g->radial.cx = g->radial.cx * vBox.w;
-        g->radial.cy = g->radial.cy * vBox.h;
-        g->radial.r = g->radial.r * sqrtf(powf(vBox.w, 2.0f) + powf(vBox.h, 2.0f)) / sqrtf(2.0f);
-        g->radial.fx = g->radial.fx * vBox.w;
-        g->radial.fy = g->radial.fy * vBox.h;
-        g->radial.fr = g->radial.fr * sqrtf(powf(vBox.w, 2.0f) + powf(vBox.h, 2.0f)) / sqrtf(2.0f);
+        if (knownW || g->radial.isCxPercentage) cx *= vBox.w;
+        if (knownH || g->radial.isCyPercentage) cy *= vBox.h;
+        if (knownW || g->radial.isFxPercentage) fx *= vBox.w;
+        if (knownH || g->radial.isFyPercentage) fy *= vBox.h;
+
+        auto scaleFactor = sqrtf(powf(vBox.w, 2.0f) + powf(vBox.h, 2.0f)) / sqrtf(2.0f);
+        if ((knownW && knownH) || g->radial.isRPercentage) r *= scaleFactor;
+        if ((knownW && knownH) || g->radial.isFrPercentage) fr *= scaleFactor;
     } else {
         Matrix m = {vBox.w, 0, vBox.x, 0, vBox.h, vBox.y, 0, 0, 1};
         if (isTransform) _transformMultiply(&m, &finalTransform);
         else finalTransform = m;
     }
 
-    fillGrad->radial(g->radial.cx, g->radial.cy, g->radial.r, g->radial.fx, g->radial.fy, g->radial.fr);
+    fillGrad->radial(cx, cy, r, fx, fy, fr);
     fillGrad->spread(g->spread);
 
     //Update the stops
@@ -401,6 +415,9 @@ static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, co
         } else if (style->fill.paint.gradient->type == SvgGradientType::Radial) {
             vg->fill(_applyRadialGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
         }
+        if (ctx.needGradFixup && style->fill.paint.gradient->userSpace) {
+            ctx.gradFixups.push({vg, style->fill.paint.gradient, style->fill.opacity, false, true});
+        }
     } else if (style->fill.paint.url) {
         TVGLOG("SVG", "The fill's url not supported.");
     } else if (style->fill.paint.curColor) {
@@ -436,6 +453,9 @@ static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, co
              vg->strokeFill(_applyLinearGradientProperty(style->stroke.paint.gradient, bBox, style->stroke.opacity));
         } else if (style->stroke.paint.gradient->type == SvgGradientType::Radial) {
              vg->strokeFill(_applyRadialGradientProperty(style->stroke.paint.gradient, bBox, style->stroke.opacity));
+        }
+        if (ctx.needGradFixup && style->stroke.paint.gradient->userSpace) {
+            ctx.gradFixups.push({vg, style->stroke.paint.gradient, style->stroke.opacity, false, false});
         }
     } else if (style->stroke.paint.url) {
         //TODO: Apply the color pointed by url
@@ -933,6 +953,10 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
 
     _applyTextFill(node->style, text, vBox);
 
+    if (ctx.needGradFixup && node->style->fill.paint.gradient && node->style->fill.paint.gradient->userSpace) {
+        ctx.gradFixups.push({text, node->style->fill.paint.gradient, node->style->fill.opacity, true, true});
+    }
+
     auto p = _applyFilter(ctx, text, node, vBox, svgPath);
     p = _applyComposition(ctx, p, node, vBox, svgPath);
     return _applyBlend(p, node);
@@ -1054,9 +1078,40 @@ Scene* svgSceneBuild(SvgParserContext& ctx, Box vBox, float w, float h, AspectRa
 
     _loadFonts(ctx.fonts);
 
+    ctx.needGradFixup = !(viewFlag & SvgViewFlag::Viewbox);
+    ctx.gradFixups.reset();
+
     auto docNode = _sceneBuildHelper(ctx, ctx.doc, vBox, svgPath, false, 0);
 
-    if (!(viewFlag & SvgViewFlag::Viewbox)) _updateInvalidViewSize(docNode, vBox, w, h, viewFlag);
+    if (!(viewFlag & SvgViewFlag::Viewbox)) {
+        auto oldVBox = vBox;
+        _updateInvalidViewSize(docNode, vBox, w, h, viewFlag);
+
+        //Re-apply userSpaceOnUse gradients with the corrected viewport
+        if (!tvg::equal(oldVBox.w, vBox.w) || !tvg::equal(oldVBox.h, vBox.h)) {
+            bool knownW = (viewFlag & SvgViewFlag::Width) != 0;
+            bool knownH = (viewFlag & SvgViewFlag::Height) != 0;
+
+            ARRAY_FOREACH(p, ctx.gradFixups) {
+                Fill* fill = nullptr;
+                if (p->grad->type == SvgGradientType::Linear) {
+                    fill = _applyLinearGradientProperty(p->grad, vBox, p->opacity, knownW, knownH);
+                } else if (p->grad->type == SvgGradientType::Radial) {
+                    fill = _applyRadialGradientProperty(p->grad, vBox, p->opacity, knownW, knownH);
+                }
+                if (!fill) continue;
+                if (p->isText) {
+                    static_cast<Text*>(p->paint)->fill(fill);
+                } else if (p->isFill) {
+                    static_cast<Shape*>(p->paint)->fill(fill);
+                } else {
+                    static_cast<Shape*>(p->paint)->strokeFill(fill);
+                }
+            }
+        }
+        ctx.gradFixups.reset();
+    }
+    ctx.needGradFixup = false;
 
     if (!tvg::equal(w, vBox.w) || !tvg::equal(h, vBox.h)) {
         Matrix m = _calculateAspectRatioMatrix(align, meetOrSlice, w, h, vBox);

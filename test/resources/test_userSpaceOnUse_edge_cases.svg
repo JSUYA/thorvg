@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!-- Comprehensive edge cases for userSpaceOnUse gradients without viewport.
+       Per SVG 2 spec (https://www.w3.org/TR/SVG2/pservers.html):
+       - gradientUnits="userSpaceOnUse" means gradient coordinates are in the
+         coordinate system where the gradient is referenced.
+       - Percentage values refer to the viewport dimensions.
+       - When no viewport is explicitly set, the viewport is derived from content. -->
+  <defs>
+    <!-- Case 1: All-percentage linear gradient (both axes) -->
+    <linearGradient id="pct_linear" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ff0000"/>
+      <stop offset="50%" stop-color="#00ff00"/>
+      <stop offset="100%" stop-color="#0000ff"/>
+    </linearGradient>
+
+    <!-- Case 2: All-absolute linear gradient (should work regardless) -->
+    <linearGradient id="abs_linear" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ff0000"/>
+      <stop offset="100%" stop-color="#0000ff"/>
+    </linearGradient>
+
+    <!-- Case 3: Mixed absolute start, percentage end -->
+    <linearGradient id="mix_linear" x1="0" y1="0" x2="50%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="yellow"/>
+      <stop offset="100%" stop-color="purple"/>
+    </linearGradient>
+
+    <!-- Case 4: Percentage radial gradient with all percentage attrs -->
+    <radialGradient id="pct_radial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="black"/>
+    </radialGradient>
+
+    <!-- Case 5: Radial with offset focal point (percentages) -->
+    <radialGradient id="focal_radial" cx="50%" cy="50%" r="40%" fx="25%" fy="25%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#003366"/>
+    </radialGradient>
+
+    <!-- Case 6: Gradient with gradientTransform rotation -->
+    <linearGradient id="rotated" x1="0%" y1="50%" x2="100%" y2="50%" gradientUnits="userSpaceOnUse"
+                    gradientTransform="rotate(30, 200, 50)">
+      <stop offset="0%" stop-color="coral"/>
+      <stop offset="100%" stop-color="darkgreen"/>
+    </linearGradient>
+
+    <!-- Case 7: Gradient with gradientTransform scale -->
+    <linearGradient id="scaled" x1="0%" y1="0%" x2="50%" y2="0%" gradientUnits="userSpaceOnUse"
+                    gradientTransform="scale(2,1)">
+      <stop offset="0%" stop-color="gold"/>
+      <stop offset="100%" stop-color="indigo"/>
+    </linearGradient>
+
+    <!-- Case 8: spreadMethod="pad" (default) -->
+    <linearGradient id="pad_spread" x1="25%" y1="0" x2="75%" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="pad">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Case 9: spreadMethod="repeat" -->
+    <linearGradient id="repeat_spread" x1="0%" y1="0" x2="25%" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="repeat">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Case 10: spreadMethod="reflect" -->
+    <linearGradient id="reflect_spread" x1="0%" y1="0" x2="25%" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="reflect">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Case 11: Gradient href inheritance with userSpaceOnUse -->
+    <linearGradient id="base_grad" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="cyan"/>
+      <stop offset="100%" stop-color="magenta"/>
+    </linearGradient>
+    <linearGradient id="inherited_grad" xlink:href="#base_grad"/>
+
+    <!-- Case 12: Zero-area gradient edge case -->
+    <linearGradient id="zero_area" x1="50%" y1="0" x2="50%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Case 13: Multiple color stops with uneven offsets -->
+    <linearGradient id="multi_stop" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="10%" stop-color="orange"/>
+      <stop offset="30%" stop-color="yellow"/>
+      <stop offset="50%" stop-color="green"/>
+      <stop offset="70%" stop-color="blue"/>
+      <stop offset="90%" stop-color="indigo"/>
+      <stop offset="100%" stop-color="violet"/>
+    </linearGradient>
+
+    <!-- Case 14: Stroke-only gradient (no fill) -->
+    <linearGradient id="stroke_only" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="lime"/>
+      <stop offset="100%" stop-color="red"/>
+    </linearGradient>
+
+    <!-- Case 15: Both fill and stroke have userSpaceOnUse gradients -->
+    <linearGradient id="fill_grad" x1="0%" y1="0" x2="0%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="skyblue"/>
+      <stop offset="100%" stop-color="navy"/>
+    </linearGradient>
+    <linearGradient id="stroke_grad" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="orange"/>
+      <stop offset="100%" stop-color="purple"/>
+    </linearGradient>
+
+    <!-- Case 16: Radial gradient with fr (focal radius) percentage -->
+    <radialGradient id="fr_radial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%" fr="10%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="yellow"/>
+      <stop offset="100%" stop-color="darkred"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Row 1: Linear gradient variants -->
+  <rect x="0"   y="0" width="100" height="40" fill="url(#pct_linear)"/>
+  <rect x="105" y="0" width="100" height="40" fill="url(#abs_linear)"/>
+  <rect x="210" y="0" width="100" height="40" fill="url(#mix_linear)"/>
+  <rect x="315" y="0" width="85"  height="40" fill="url(#multi_stop)"/>
+
+  <!-- Row 2: Radial gradient variants -->
+  <rect x="0"   y="50" width="100" height="80" fill="url(#pct_radial)"/>
+  <rect x="105" y="50" width="100" height="80" fill="url(#focal_radial)"/>
+  <rect x="210" y="50" width="100" height="80" fill="url(#fr_radial)"/>
+
+  <!-- Row 3: Transform variants -->
+  <rect x="0"   y="140" width="100" height="40" fill="url(#rotated)"/>
+  <rect x="105" y="140" width="100" height="40" fill="url(#scaled)"/>
+
+  <!-- Row 4: Spread methods -->
+  <rect x="0"   y="190" width="100" height="30" fill="url(#pad_spread)"/>
+  <rect x="105" y="190" width="100" height="30" fill="url(#repeat_spread)"/>
+  <rect x="210" y="190" width="100" height="30" fill="url(#reflect_spread)"/>
+
+  <!-- Row 5: Inheritance, edge cases, stroke -->
+  <rect x="0"   y="230" width="100" height="30" fill="url(#inherited_grad)"/>
+  <rect x="105" y="230" width="100" height="30" fill="url(#zero_area)"/>
+  <rect x="210" y="230" width="100" height="30" fill="none" stroke="url(#stroke_only)" stroke-width="6"/>
+  <rect x="315" y="230" width="85"  height="30" fill="url(#fill_grad)" stroke="url(#stroke_grad)" stroke-width="4"/>
+
+  <!-- Row 6: Different shape types -->
+  <circle cx="50" cy="295" r="25" fill="url(#pct_linear)"/>
+  <ellipse cx="155" cy="295" rx="45" ry="25" fill="url(#pct_radial)"/>
+  <polygon points="255,270 300,320 210,320" fill="url(#mix_linear)"/>
+  <line x1="320" y1="270" x2="400" y2="320" stroke="url(#stroke_only)" stroke-width="4"/>
+</svg>

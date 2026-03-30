@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Test: SVG without any viewport info (no viewBox, width, height).
+       Gradients using userSpaceOnUse with percentage coordinates must resolve
+       against the viewport established from the content bounding box. -->
+  <defs>
+    <!-- Linear gradient: percentage coords in both axes -->
+    <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Linear gradient: mixed absolute/percentage coords -->
+    <linearGradient id="lg2" x1="0" y1="0" x2="50%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="yellow" stop-opacity="1"/>
+      <stop offset="50%" stop-color="blue" stop-opacity="1"/>
+      <stop offset="100%" stop-color="red" stop-opacity="1"/>
+    </linearGradient>
+
+    <!-- Radial gradient: all percentage coords -->
+    <radialGradient id="rg1" cx="50%" cy="50%" r="50%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="green"/>
+    </radialGradient>
+
+    <!-- Radial gradient: with focal point offsets -->
+    <radialGradient id="rg2" cx="50%" cy="50%" r="50%" fx="30%" fy="30%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="purple"/>
+    </radialGradient>
+
+    <!-- Linear gradient: with gradientTransform -->
+    <linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse"
+                    gradientTransform="rotate(45)">
+      <stop offset="0%" stop-color="orange"/>
+      <stop offset="100%" stop-color="teal"/>
+    </linearGradient>
+
+    <!-- Linear gradient: horizontal only, percentage x -->
+    <linearGradient id="lg4" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- Radial gradient: with spreadMethod="reflect" -->
+    <radialGradient id="rg3" cx="50%" cy="50%" r="25%" gradientUnits="userSpaceOnUse" spreadMethod="reflect">
+      <stop offset="0%" stop-color="yellow"/>
+      <stop offset="100%" stop-color="navy"/>
+    </radialGradient>
+
+    <!-- Stroke gradient: userSpaceOnUse percentage -->
+    <linearGradient id="sg1" x1="0%" y1="0" x2="100%" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="lime"/>
+      <stop offset="100%" stop-color="magenta"/>
+    </linearGradient>
+
+    <!-- objectBoundingBox for comparison (should not be affected) -->
+    <linearGradient id="obb">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Row 1: linear gradients -->
+  <rect x="10" y="10" width="120" height="80" fill="url(#lg1)"/>
+  <rect x="140" y="10" width="120" height="80" fill="url(#lg2)"/>
+  <rect x="270" y="10" width="120" height="80" fill="url(#lg3)"/>
+
+  <!-- Row 2: radial gradients -->
+  <circle cx="70" cy="150" r="40" fill="url(#rg1)"/>
+  <circle cx="200" cy="150" r="40" fill="url(#rg2)"/>
+  <ellipse cx="330" cy="150" rx="60" ry="40" fill="url(#rg3)"/>
+
+  <!-- Row 3: shapes with gradient fill and stroke -->
+  <rect x="10" y="200" width="120" height="60" fill="url(#lg4)" stroke="url(#sg1)" stroke-width="4"/>
+  <rect x="140" y="200" width="120" height="60" fill="url(#obb)"/>
+
+  <!-- Row 4: transformed shapes with gradient -->
+  <g transform="translate(270, 200)">
+    <rect x="0" y="0" width="120" height="60" fill="url(#lg1)"/>
+  </g>
+</svg>
