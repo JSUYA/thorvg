@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="600">
+
+  <!-- Valid gradient in defs (should render correctly) -->
+  <defs>
+    <linearGradient id="valid_linear" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#00ff00" offset="0" />
+      <stop stop-color="#0000ff" offset="1" />
+    </linearGradient>
+    <radialGradient id="valid_radial" cx="0.5" cy="0.5" r="0.5">
+      <stop stop-color="#ff0000" offset="0" />
+      <stop stop-color="#0000ff" offset="1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Test 1: Gradient inside stop outside gradient (from issue) - should NOT render gradient -->
+  <stop>
+    <linearGradient id="invalid_stop_linear">
+      <stop stop-color="#decaff" offset="0" />
+      <stop stop-color="#dad" offset="1" />
+    </linearGradient>
+  </stop>
+  <rect x="10" y="10" width="80" height="80" fill="url(#invalid_stop_linear)" stroke="black" />
+
+  <!-- Test 2: Radial gradient inside stop outside gradient - should NOT render gradient -->
+  <stop>
+    <radialGradient id="invalid_stop_radial">
+      <stop stop-color="#ff0000" offset="0" />
+      <stop stop-color="#00ff00" offset="1" />
+    </radialGradient>
+  </stop>
+  <rect x="110" y="10" width="80" height="80" fill="url(#invalid_stop_radial)" stroke="black" />
+
+  <!-- Test 3: Valid gradient reference - should render normally -->
+  <rect x="210" y="10" width="80" height="80" fill="url(#valid_linear)" stroke="black" />
+
+  <!-- Test 4: Valid radial gradient reference - should render normally -->
+  <rect x="310" y="10" width="80" height="80" fill="url(#valid_radial)" stroke="black" />
+
+  <!-- Test 5: Deeply nested gradient inside stop - should NOT render -->
+  <stop>
+    <stop>
+      <linearGradient id="deep_nested_invalid">
+        <stop stop-color="#ff00ff" offset="0" />
+        <stop stop-color="#00ffff" offset="1" />
+      </linearGradient>
+    </stop>
+  </stop>
+  <circle cx="50" cy="150" r="40" fill="url(#deep_nested_invalid)" stroke="black" />
+
+  <!-- Test 6: Gradient inside stop that is inside a valid gradient (nested stop with gradient) -->
+  <!-- The inner gradient is nested inside the outer gradient's stop, should NOT be registered -->
+  <defs>
+    <linearGradient id="outer_grad">
+      <stop stop-color="#aabbcc" offset="0">
+        <linearGradient id="invalid_nested_in_grad_stop">
+          <stop stop-color="#112233" offset="0" />
+          <stop stop-color="#445566" offset="1" />
+        </linearGradient>
+      </stop>
+      <stop stop-color="#ccbbaa" offset="1" />
+    </linearGradient>
+  </defs>
+  <circle cx="150" cy="150" r="40" fill="url(#outer_grad)" stroke="black" />
+  <circle cx="250" cy="150" r="40" fill="url(#invalid_nested_in_grad_stop)" stroke="black" />
+
+  <!-- Test 7: Empty stop element with gradient (self-closing stop) - gradient should still be skipped -->
+  <stop />
+  <linearGradient id="after_empty_stop">
+    <stop stop-color="#ff0000" offset="0" />
+    <stop stop-color="#00ff00" offset="1" />
+  </linearGradient>
+  <!-- This gradient is NOT inside stop (stop was self-closing), so it should be valid -->
+  <circle cx="350" cy="150" r="40" fill="url(#after_empty_stop)" stroke="black" />
+
+  <!-- Test 8: Gradient with xlink:href referencing an invalid gradient - should NOT render -->
+  <stop>
+    <linearGradient id="invalid_base">
+      <stop stop-color="#aaa" offset="0" />
+      <stop stop-color="#bbb" offset="1" />
+    </linearGradient>
+  </stop>
+  <defs>
+    <linearGradient id="ref_to_invalid" xlink:href="#invalid_base" />
+  </defs>
+  <rect x="10" y="210" width="80" height="80" fill="url(#ref_to_invalid)" stroke="black" />
+
+  <!-- Test 9: Multiple elements inside stop - all should be skipped -->
+  <stop>
+    <linearGradient id="skip1">
+      <stop stop-color="#111" offset="0" />
+      <stop stop-color="#222" offset="1" />
+    </linearGradient>
+    <radialGradient id="skip2">
+      <stop stop-color="#333" offset="0" />
+      <stop stop-color="#444" offset="1" />
+    </radialGradient>
+  </stop>
+  <rect x="110" y="210" width="80" height="80" fill="url(#skip1)" stroke="black" />
+  <rect x="210" y="210" width="80" height="80" fill="url(#skip2)" stroke="black" />
+
+  <!-- Test 10: Valid gradient in g element (container) - should render -->
+  <g>
+    <linearGradient id="valid_in_g">
+      <stop stop-color="#ff6600" offset="0" />
+      <stop stop-color="#0066ff" offset="1" />
+    </linearGradient>
+  </g>
+  <rect x="310" y="210" width="80" height="80" fill="url(#valid_in_g)" stroke="black" />
+
+  <!-- Test 11: Gradient directly under svg (no defs) - should render (svg is container) -->
+  <linearGradient id="valid_under_svg">
+    <stop stop-color="#993399" offset="0" />
+    <stop stop-color="#339933" offset="1" />
+  </linearGradient>
+  <rect x="10" y="310" width="80" height="80" fill="url(#valid_under_svg)" stroke="black" />
+
+  <!-- Test 12: Gradient inside circle element - tests graphics element nesting -->
+  <circle cx="150" cy="350" r="40" fill="url(#valid_linear)" stroke="black" />
+
+</svg>

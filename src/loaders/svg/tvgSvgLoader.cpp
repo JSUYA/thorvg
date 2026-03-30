@@ -3086,6 +3086,11 @@ static void _svgLoaderParserXmlClose(SvgParserContext* ctx, const char* content,
         }
     }
 
+    //Pop the nullptr marker pushed by an invalid <stop> outside a gradient
+    if (STR_AS(tagName, "stop") && ctx->gradientStack.count > 0 && !ctx->gradientStack.last()) {
+        ctx->gradientStack.pop();
+    }
+
     for (unsigned int i = 0; i < sizeof(graphicsTags) / sizeof(graphicsTags[0]); i++) {
         if (!strncmp(tagName, graphicsTags[i].tag, sz)) {
             ctx->currentGraphicsNode = nullptr;
@@ -3184,13 +3189,17 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
     } else if (STR_AS(tagName, "stop")) {
         if (ctx->gradientStack.count == 0) {
             TVGLOG("SVG", "Stop element is used outside of the Gradient element");
+            //Push nullptr as a marker to prevent child gradients from being registered.
+            if (!empty) ctx->gradientStack.push(nullptr);
             return;
         }
+        auto last = ctx->gradientStack.last();
+        if (!last) return;  //inside an invalid stop marker
         /* default value for opacity */
         ctx->parser->gradStop = {0.0f, 0, 0, 0, 255};
         ctx->parser->flags = SvgStopStyleFlags::StopDefault;
         xmlParseAttributes(attrs, attrsLength, _attrParseStops, ctx);
-        ctx->gradientStack.last()->stops.push(ctx->parser->gradStop);
+        last->stops.push(ctx->parser->gradStop);
     } else {
         if (!isIgnoreUnsupportedLogElements(tagName)) TVGLOG("SVG", "Unsupported elements used [Elements: %s]", tagName);
     }
