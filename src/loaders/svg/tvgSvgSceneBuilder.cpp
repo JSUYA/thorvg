@@ -262,6 +262,14 @@ static bool _applyClip(SvgParserContext& ctx, Paint* paint, const SvgNode* node,
     if (valid) {
         Matrix finalTransform = _compositionTransform(paint, node, clipNode, SvgNodeType::ClipPath);
         clipper->transform(finalTransform);
+
+        //Handle clipPath element having its own clip-path attribute (nested clipPath)
+        if (auto nestedClipNode = clipNode->style->clipPath.node) {
+            if (!clipNode->style->clipPath.applying && nestedClipNode->child.count > 0) {
+                _applyClip(ctx, clipper, clipNode, nestedClipNode, vBox, svgPath);
+            }
+        }
+
         paint->clip(clipper);
     } else {
         Paint::rel(clipper);
@@ -519,25 +527,136 @@ static Paint* _shapeBuildHelper(SvgParserContext& ctx, SvgNode* node, const Box&
     return _applyProperty(ctx, node, shape, vBox, svgPath, false);
 }
 
+
+//Compute the signed area of a contour using the shoelace formula.
+//Positive = clockwise in screen coordinates (Y-down), negative = counter-clockwise.
+//For cubic bezier segments, uses a linear approximation (endpoint-to-endpoint).
+static float _contourSignedArea(const PathCommand* cmds, uint32_t cmdsCnt, const Point* pts, uint32_t ptsCnt)
+{
+    if (ptsCnt < 3) return 0.0f;
+
+    float area = 0.0f;
+    auto firstPt = pts[0];
+    auto prevPt = firstPt;
+    uint32_t ptIdx = 1;
+
+    for (uint32_t i = 1; i < cmdsCnt; ++i) {
+        switch (cmds[i]) {
+            case PathCommand::LineTo: {
+                area += prevPt.x * pts[ptIdx].y - pts[ptIdx].x * prevPt.y;
+                prevPt = pts[ptIdx];
+                ++ptIdx;
+                break;
+            }
+            case PathCommand::CubicTo: {
+                auto& endPt = pts[ptIdx + 2];
+                area += prevPt.x * endPt.y - endPt.x * prevPt.y;
+                prevPt = endPt;
+                ptIdx += 3;
+                break;
+            }
+            case PathCommand::Close: {
+                area += prevPt.x * firstPt.y - firstPt.x * prevPt.y;
+                break;
+            }
+            default: break;
+        }
+    }
+    return area;
+}
+
+
+//Reverse a contour's winding direction in-place.
+//Handles MoveTo, LineTo, CubicTo, and Close commands.
+static void _reverseContour(PathCommand* cmds, uint32_t cmdsCnt, Point* pts, uint32_t ptsCnt)
+{
+    if (ptsCnt < 2 || cmdsCnt < 2) return;
+
+    bool closed = (cmds[cmdsCnt - 1] == PathCommand::Close);
+    uint32_t segEnd = closed ? cmdsCnt - 1 : cmdsCnt;
+    uint32_t segCount = segEnd - 1;
+    if (segCount == 0) return;
+
+    //Collect segment info (command type and point index)
+    struct Seg { PathCommand cmd; uint32_t ptIdx; };
+    auto segs = tvg::malloc<Seg>(segCount * sizeof(Seg));
+    uint32_t pidx = 1;
+    for (uint32_t i = 0; i < segCount; ++i) {
+        segs[i].cmd = cmds[i + 1];
+        segs[i].ptIdx = pidx;
+        pidx += (cmds[i + 1] == PathCommand::CubicTo) ? 3 : 1;
+    }
+
+    //Build reversed points into a temporary buffer
+    auto newPts = tvg::malloc<Point>(ptsCnt * sizeof(Point));
+    uint32_t npi = 0;
+
+    //New MoveTo: last segment's endpoint
+    auto lastEndIdx = segs[segCount - 1].ptIdx + ((segs[segCount - 1].cmd == PathCommand::CubicTo) ? 2 : 0);
+    newPts[npi++] = pts[lastEndIdx];
+
+    //Reversed segments
+    for (int i = segCount - 1; i >= 0; --i) {
+        auto prevEnd = (i > 0) ? pts[segs[i - 1].ptIdx + ((segs[i - 1].cmd == PathCommand::CubicTo) ? 2 : 0)] : pts[0];
+        if (segs[i].cmd == PathCommand::CubicTo) {
+            newPts[npi++] = pts[segs[i].ptIdx + 1]; //c2 becomes new c1
+            newPts[npi++] = pts[segs[i].ptIdx];      //c1 becomes new c2
+            newPts[npi++] = prevEnd;
+        } else {
+            newPts[npi++] = prevEnd;
+        }
+    }
+
+    memcpy(pts, newPts, ptsCnt * sizeof(Point));
+    tvg::free(newPts);
+
+    //Reverse the command order (between MoveTo and Close)
+    uint32_t left = 1, right = segEnd - 1;
+    while (left < right) {
+        auto tmp = cmds[left];
+        cmds[left] = cmds[right];
+        cmds[right] = tmp;
+        ++left;
+        --right;
+    }
+
+    tvg::free(segs);
+}
+
+
 static bool _appendClipShape(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath, const Matrix* transform)
 {
-    uint32_t currentPtsCnt;
-    shape->path(nullptr, nullptr, nullptr, &currentPtsCnt);
+    uint32_t currentPtsCnt, currentCmdsCnt;
+    shape->path(nullptr, &currentCmdsCnt, nullptr, &currentPtsCnt);
 
     if (!_recognizeShape(node, shape)) return false;
+
+    const PathCommand* cmds;
+    const Point* pts;
+    uint32_t ptsCnt, cmdsCnt;
+    shape->path(&cmds, &cmdsCnt, &pts, &ptsCnt);
 
     //The 'transform' matrix has higher priority than the node->transform, since it already contains it
     auto m = transform ? transform : (node->transform ? node->transform : nullptr);
 
     if (m) {
-        const Point *pts;
-        uint32_t ptsCnt;
-        shape->path(nullptr, nullptr, &pts, &ptsCnt);
         auto p = const_cast<Point*>(pts) + currentPtsCnt;
-        while (currentPtsCnt++ < ptsCnt) {
+        auto cnt = currentPtsCnt;
+        while (cnt++ < ptsCnt) {
             *p *= *m;
             ++p;
         }
+    }
+
+    //Ensure all contours wind clockwise (positive signed area in Y-down screen coords)
+    //so that the NonZero fill rule produces union of all clip children per the SVG spec.
+    auto newCmds = const_cast<PathCommand*>(cmds) + currentCmdsCnt;
+    auto newPts = const_cast<Point*>(pts) + currentPtsCnt;
+    auto newCmdsCnt = cmdsCnt - currentCmdsCnt;
+    auto newPtsCnt = ptsCnt - currentPtsCnt;
+
+    if (_contourSignedArea(newCmds, newCmdsCnt, newPts, newPtsCnt) < 0) {
+        _reverseContour(newCmds, newCmdsCnt, newPts, newPtsCnt);
     }
 
     //Apply Clip Chaining
