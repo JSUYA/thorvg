@@ -252,19 +252,55 @@ static bool _applyClip(SvgParserContext& ctx, Paint* paint, const SvgNode* node,
 {
     node->style->clipPath.applying = true;
 
-    auto clipper = Shape::gen();
-    auto valid = false; //Composite only when valid shapes exist
+    //Single child: use efficient clip()
+    if (clipNode->child.count <= 1) {
+        auto clipper = Shape::gen();
+        auto valid = false;
+        ARRAY_FOREACH(p, clipNode->child) {
+            if (_appendClipChild(ctx, *p, clipper, vBox, svgPath)) valid = true;
+        }
+        if (valid) {
+            clipper->transform(_compositionTransform(paint, node, clipNode, SvgNodeType::ClipPath));
+            if (auto nested = clipNode->style->clipPath.node) {
+                if (!clipNode->style->clipPath.applying && nested->child.count > 0) {
+                    _applyClip(ctx, clipper, clipNode, nested, vBox, svgPath);
+                }
+            }
+            paint->clip(clipper);
+        } else {
+            Paint::rel(clipper);
+        }
+        node->style->clipPath.applying = false;
+        return valid;
+    }
+
+    //Multiple children: compose with MaskMethod::Add (union), apply with Alpha
+    Paint* clipMask = nullptr;
+    auto valid = false;
 
     ARRAY_FOREACH(p, clipNode->child) {
-        if (_appendClipChild(ctx, *p, clipper, vBox, svgPath)) valid = true;
+        auto shape = Shape::gen();
+        if (!_appendClipChild(ctx, *p, shape, vBox, svgPath)) {
+            Paint::rel(shape);
+            continue;
+        }
+        shape->fill(255, 255, 255, 255);
+        if (clipMask) shape->mask(clipMask, MaskMethod::Add);
+        clipMask = shape;
+        valid = true;
     }
 
     if (valid) {
-        Matrix finalTransform = _compositionTransform(paint, node, clipNode, SvgNodeType::ClipPath);
-        clipper->transform(finalTransform);
-        paint->clip(clipper);
-    } else {
-        Paint::rel(clipper);
+        clipMask->transform(_compositionTransform(paint, node, clipNode, SvgNodeType::ClipPath));
+        if (auto nested = clipNode->style->clipPath.node) {
+            if (!clipNode->style->clipPath.applying && nested->child.count > 0) {
+                auto scene = Scene::gen();
+                scene->add(clipMask);
+                _applyClip(ctx, scene, clipNode, nested, vBox, svgPath);
+                clipMask = scene;
+            }
+        }
+        paint->mask(clipMask, MaskMethod::Alpha);
     }
 
     node->style->clipPath.applying = false;
@@ -294,6 +330,18 @@ static Paint* _applyComposition(SvgParserContext& ctx, Paint* paint, const SvgNo
     if ((clipNode && clipNode->child.empty()) || (maskNode && maskNode->child.empty())) {
         Paint::rel(paint);
         return nullptr;
+    }
+
+    //Multi-child clipPath uses mask() which conflicts with SVG mask on the same element.
+    if (clipNode && clipNode->child.count > 1 && maskNode) {
+        auto inner = Scene::gen();
+        inner->add(paint);
+        if (!_applyClip(ctx, inner, node, clipNode, vBox, svgPath)) {
+            Paint::rel(inner);
+            return nullptr;
+        }
+        paint = inner;
+        clipNode = nullptr;
     }
 
     auto scene = Scene::gen();

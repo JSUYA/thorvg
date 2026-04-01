@@ -1200,6 +1200,8 @@ static bool _attrParseClipPathNode(void* data, const char* key, const char* valu
         return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, ctx);
     } else if (STR_AS(key, "transform")) {
         node->transform = _parseTransformationMatrix(value);
+    } else if (STR_AS(key, "clip-path")) {
+        _handleClipPathAttr(ctx, node, value);
     } else if (STR_AS(key, "id")) {
         _copyId(&node->id, value);
     } else if (STR_AS(key, "class")) {
@@ -3698,7 +3700,10 @@ void SvgLoader::run(unsigned tid)
                 if (!ctx.cloneNodes.empty()) _clonePostponedNodes(&ctx.cloneNodes, ctx.doc);
 
                 _updateComposite(ctx.doc, ctx.doc);
-                if (defs) _updateComposite(ctx.doc, defs);
+                if (defs) {
+                    _updateComposite(ctx.doc, defs);
+                    _updateComposite(defs, defs);
+                }
 
                 _updateFilter(ctx.doc, ctx.doc);
                 if (defs) _updateFilter(ctx.doc, defs);
