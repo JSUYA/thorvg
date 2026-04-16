@@ -1149,6 +1149,14 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
         return true;
     }
 
+    //text-specific style attributes
+    if (node->type == SvgNodeType::Text && STR_AS(key, "letter-spacing")) {
+        if (!STR_AS(value, "normal")) {
+            node->node.text.letterSpacing = _toFloat(ctx->parser, value, SvgParserLengthType::Horizontal);
+        }
+        return true;
+    }
+
     int sz = strlen(key);
     for (unsigned int i = 0; i < sizeof(styleTags) / sizeof(styleTags[0]); i++) {
         if (styleTags[i].sz - 1 == sz && !strncmp(styleTags[i].tag, key, sz)) {
@@ -3030,6 +3038,7 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
             to->node.text.x = from->node.text.x;
             to->node.text.y = from->node.text.y;
             to->node.text.fontSize = from->node.text.fontSize;
+            to->node.text.letterSpacing = from->node.text.letterSpacing;
             svgUtilReplace(&to->node.text.text, from->node.text.text);
             svgUtilReplace(&to->node.text.fontFamily, from->node.text.fontFamily);
             break;

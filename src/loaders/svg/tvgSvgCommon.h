@@ -396,6 +396,7 @@ struct SvgTextNode
     char* fontFamily;
     float x, y;
     float fontSize;
+    float letterSpacing;
 };
 
 struct SvgGaussianBlurNode

@@ -922,6 +922,13 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
     text->text(processedText);
     tvg::free(processedText);
 
+    //Apply letter-spacing: convert absolute value to a scale factor
+    if (textNode->letterSpacing != 0.0f && size > 0.0f) {
+        auto scale = 1.0f + (textNode->letterSpacing * 0.75f) / (size * 0.5f);
+        if (scale < 0.0f) scale = 0.0f;
+        text->spacing(scale, 1.0f);
+    }
+
     _applyTextFill(node->style, text, vBox);
 
     auto p = _applyFilter(ctx, text, node, vBox, svgPath);
