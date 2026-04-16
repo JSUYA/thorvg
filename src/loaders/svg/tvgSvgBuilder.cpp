@@ -609,108 +609,90 @@ static float _markerAngle(const MarkerVertex& v)
 }
 
 
+static Matrix _markerTransform(const Point& pos, float angle, float strokeWidth, SvgMarkerUnits units)
+{
+    auto m = tvg::identity();
+    translateR(&m, pos);
+
+    if (!tvg::zero(angle)) {
+        Matrix rot = tvg::identity();
+        rotate(&rot, angle);
+        m *= rot;
+    }
+
+    if (units == SvgMarkerUnits::StrokeWidth) {
+        scaleR(&m, {strokeWidth, strokeWidth});
+    }
+    return m;
+}
+
+
 static Paint* _applyMarkers(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath)
 {
     auto style = node->style;
-    auto markerStartNode = style->marker[0].node;
-    auto markerMidNode = style->marker[1].node;
-    auto markerEndNode = style->marker[2].node;
+    SvgNode* markerNodes[3] = {style->marker[0].node, style->marker[1].node, style->marker[2].node};
 
-    if (!markerStartNode && !markerMidNode && !markerEndNode) return nullptr;
+    if (!markerNodes[0] && !markerNodes[1] && !markerNodes[2]) return nullptr;
 
     Array<MarkerVertex> vertices;
     _extractVertices(shape, vertices);
     if (vertices.empty()) return nullptr;
 
-    auto strokeWidth = style->stroke.width;
     auto markerScene = Scene::gen();
 
     for (uint32_t i = 0; i < vertices.count; ++i) {
         auto& v = vertices[i];
-        SvgNode* mNode = nullptr;
 
-        if (v.isStart && markerStartNode) mNode = markerStartNode;
-        else if (v.isEnd && !v.isStart && markerEndNode) mNode = markerEndNode;
-        else if (!v.isStart && !v.isEnd && markerMidNode) mNode = markerMidNode;
+        //Select marker: 0=start, 1=mid, 2=end
+        SvgNode* mNode = nullptr;
+        if (v.isStart) mNode = markerNodes[0];
+        else if (v.isEnd) mNode = markerNodes[2];
+        else mNode = markerNodes[1];
         if (!mNode) continue;
 
         auto& marker = mNode->node.marker;
 
-        //Build marker content using _sceneBuildHelper
+        //Build marker content (temporarily enable display for building)
         Box markerVBox = marker.hasViewBox ? Box{marker.vx, marker.vy, marker.vw, marker.vh}
                                            : Box{0, 0, marker.width, marker.height};
-
+        mNode->style->display = true;
         auto content = _sceneBuildHelper(ctx, mNode, markerVBox, svgPath, false, 0);
+        mNode->style->display = false;
         if (!content) continue;
 
-        //Build transformation: translate -> rotate -> scale -> viewBox -> refXY
-        auto m = tvg::identity();
-
-        //1. translate to vertex
-        translateR(&m, v.pos);
-
-        //2. rotate
-        float angle = 0.0f;
-        if (marker.orient == SvgMarkerOrient::Auto) {
+        //Determine orientation angle
+        float angle = marker.angle;
+        if (marker.orient == SvgMarkerOrient::Auto || marker.orient == SvgMarkerOrient::AutoStartReverse) {
             angle = _markerAngle(v);
-        } else if (marker.orient == SvgMarkerOrient::AutoStartReverse) {
-            angle = _markerAngle(v);
-            if (v.isStart) angle += 180.0f;
-        } else {
-            angle = marker.angle;
+            if (marker.orient == SvgMarkerOrient::AutoStartReverse && v.isStart) angle += 180.0f;
         }
 
-        //rotate() modifies identity-like matrix in-place (same as tvgMath.cpp rotate())
-        if (!tvg::zero(angle)) {
-            Matrix rot = tvg::identity();
-            rotate(&rot, angle);
-            m *= rot;
-        }
+        //Build placement transform (translate -> rotate -> scale)
+        auto base = _markerTransform(v.pos, angle, style->stroke.width, marker.markerUnits);
 
-        //3. scale by strokeWidth if markerUnits == strokeWidth
-        if (marker.markerUnits == SvgMarkerUnits::StrokeWidth) {
-            scaleR(&m, {strokeWidth, strokeWidth});
-        }
-
-        //4. viewBox transformation (same pattern as _useBuildHelper for symbols)
+        //Append viewBox transformation
+        auto m = base;
         if (marker.hasViewBox && marker.vw > 0 && marker.vh > 0) {
             if (!tvg::equal(marker.width, marker.vw) || !tvg::equal(marker.height, marker.vh)) {
-                Box box = {marker.vx, marker.vy, marker.vw, marker.vh};
-                m *= _calculateAspectRatioMatrix(marker.align, marker.meetOrSlice, marker.width, marker.height, box);
+                m *= _calculateAspectRatioMatrix(marker.align, marker.meetOrSlice, marker.width, marker.height, {marker.vx, marker.vy, marker.vw, marker.vh});
             } else if (!tvg::zero(marker.vx) || !tvg::zero(marker.vy)) {
                 translateR(&m, {-marker.vx, -marker.vy});
             }
         }
-
-        //5. translate by (-refX, -refY)
         translateR(&m, {-marker.refX, -marker.refY});
-
         content->transform(m);
 
-        //Clip to marker viewport if overflow is not visible
+        //Clip to marker viewport
         if (!marker.overflowVisible) {
             auto clip = Shape::gen();
             clip->appendRect(0, 0, marker.width, marker.height);
-
-            //Clip transform: steps 1-3 only (without viewBox and refXY)
-            auto clipM = tvg::identity();
-            translateR(&clipM, v.pos);
-            if (!tvg::zero(angle)) {
-                Matrix rot = tvg::identity();
-                rotate(&rot, angle);
-                clipM *= rot;
-            }
-            if (marker.markerUnits == SvgMarkerUnits::StrokeWidth) {
-                scaleR(&clipM, {strokeWidth, strokeWidth});
-            }
-            clip->transform(clipM);
+            clip->transform(base);
             content->clip(clip);
         }
 
         markerScene->add(content);
     }
     vertices.reset();
-
     return markerScene;
 }
 
