@@ -2102,7 +2102,9 @@ static constexpr struct
     size_t offset;
 } textTags[] = {
     {"x", SvgParserLengthType::Horizontal, sizeof("x"), offsetof(SvgTextNode, x)},
-    {"y", SvgParserLengthType::Vertical, sizeof("y"), offsetof(SvgTextNode, y)}};
+    {"y", SvgParserLengthType::Vertical, sizeof("y"), offsetof(SvgTextNode, y)},
+    {"dx", SvgParserLengthType::Horizontal, sizeof("dx"), offsetof(SvgTextNode, dx)},
+    {"dy", SvgParserLengthType::Vertical, sizeof("dy"), offsetof(SvgTextNode, dy)}};
 
 static bool _attrPrescanTextFontSize(void* data, const char* key, const char* value)
 {
@@ -3029,6 +3031,8 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
         case SvgNodeType::Text: {
             to->node.text.x = from->node.text.x;
             to->node.text.y = from->node.text.y;
+            to->node.text.dx = from->node.text.dx;
+            to->node.text.dy = from->node.text.dy;
             to->node.text.fontSize = from->node.text.fontSize;
             svgUtilReplace(&to->node.text.text, from->node.text.text);
             svgUtilReplace(&to->node.text.fontFamily, from->node.text.fontFamily);

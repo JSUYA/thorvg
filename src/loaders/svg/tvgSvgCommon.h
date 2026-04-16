@@ -395,6 +395,7 @@ struct SvgTextNode
     char* text;
     char* fontFamily;
     float x, y;
+    float dx, dy;
     float fontSize;
 };
 
