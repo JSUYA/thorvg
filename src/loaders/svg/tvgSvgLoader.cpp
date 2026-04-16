@@ -1047,6 +1047,36 @@ static void _handleFilterAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, c
     }
 }
 
+static void _handleMarkerAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, int index, const char* value)
+{
+    auto style = node->style;
+    if (STR_AS(value, "none")) {
+        tvg::free(style->marker[index].url);
+        style->marker[index].url = nullptr;
+    } else {
+        int len = strlen(value);
+        if (len >= 3 && !strncmp(value, "url", 3)) {
+            tvg::free(style->marker[index].url);
+            style->marker[index].url = _idFromUrl((const char*)(value + 3));
+        }
+    }
+}
+
+static void _handleMarkerStartAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    _handleMarkerAttr(ctx, node, 0, value);
+}
+
+static void _handleMarkerMidAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    _handleMarkerAttr(ctx, node, 1, value);
+}
+
+static void _handleMarkerEndAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    _handleMarkerAttr(ctx, node, 2, value);
+}
+
 static void _handleMaskTypeAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, const char* value)
 {
     node->node.mask.type = _toMaskType(value);
@@ -1121,7 +1151,10 @@ static constexpr struct
     STYLE_DEF(display, Display, SvgStyleFlags::Display),
     STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
     STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
-    STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode)
+    STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode),
+    STYLE_DEF(marker-start, MarkerStart, SvgStyleFlags::MarkerStart),
+    STYLE_DEF(marker-mid, MarkerMid, SvgStyleFlags::MarkerMid),
+    STYLE_DEF(marker-end, MarkerEnd, SvgStyleFlags::MarkerEnd)
 };
 
 
@@ -1175,6 +1208,15 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
             }
             return true;
         }
+    }
+
+    //Handle the 'marker' shorthand (CSS only, sets all three)
+    if (style && sz == 6 && !strncmp(key, "marker", 6)) {
+        _handleMarkerStartAttr(ctx, node, value);
+        _handleMarkerMidAttr(ctx, node, value);
+        _handleMarkerEndAttr(ctx, node, value);
+        node->style->flags = (node->style->flags | SvgStyleFlags::MarkerStart | SvgStyleFlags::MarkerMid | SvgStyleFlags::MarkerEnd);
+        return true;
     }
 
     return false;
@@ -1290,6 +1332,59 @@ static bool _attrParseSymbolNode(void* data, const char* key, const char* value)
         _parseAspectRatio(&value, &symbol->align, &symbol->meetOrSlice);
     } else if (STR_AS(key, "overflow")) {
         if (STR_AS(value, "visible")) symbol->overflowVisible = true;
+    } else {
+        return _attrParseGNode(data, key, value);
+    }
+    return true;
+}
+
+
+static float _toAngle(const char* value)
+{
+    char* end = nullptr;
+    auto angle = toFloat(value, &end);
+    if (end) {
+        end = (char*)svgUtilSkipWhiteSpace(end, nullptr);
+        if (STR_AS(end, "rad")) angle = tvg::rad2deg(angle);
+        else if (STR_AS(end, "grad")) angle = angle * 0.9f;
+        else if (STR_AS(end, "turn")) angle = angle * 360.0f;
+    }
+    return angle;
+}
+
+
+static bool _attrParseMarkerNode(void* data, const char* key, const char* value)
+{
+    auto ctx = (SvgParserContext*)data;
+    auto node = ctx->parser->node;
+    auto marker = &node->node.marker;
+
+    if (STR_AS(key, "viewBox")) {
+        if (!_parseNumber(&value, nullptr, &marker->vx) || !_parseNumber(&value, nullptr, &marker->vy)) return false;
+        if (!_parseNumber(&value, nullptr, &marker->vw) || !_parseNumber(&value, nullptr, &marker->vh)) return false;
+        marker->hasViewBox = true;
+    } else if (STR_AS(key, "markerWidth")) {
+        marker->width = _toFloat(ctx->parser, value, SvgParserLengthType::Horizontal);
+    } else if (STR_AS(key, "markerHeight")) {
+        marker->height = _toFloat(ctx->parser, value, SvgParserLengthType::Vertical);
+    } else if (STR_AS(key, "refX")) {
+        marker->refX = _toFloat(ctx->parser, value, SvgParserLengthType::Horizontal);
+    } else if (STR_AS(key, "refY")) {
+        marker->refY = _toFloat(ctx->parser, value, SvgParserLengthType::Vertical);
+    } else if (STR_AS(key, "markerUnits")) {
+        if (STR_AS(value, "userSpaceOnUse")) marker->markerUnits = SvgMarkerUnits::UserSpaceOnUse;
+        else marker->markerUnits = SvgMarkerUnits::StrokeWidth;
+    } else if (STR_AS(key, "orient")) {
+        if (STR_AS(value, "auto")) marker->orient = SvgMarkerOrient::Auto;
+        else if (STR_AS(value, "auto-start-reverse")) marker->orient = SvgMarkerOrient::AutoStartReverse;
+        else {
+            marker->orient = SvgMarkerOrient::Fixed;
+            marker->angle = _toAngle(value);
+        }
+    } else if (STR_AS(key, "preserveAspectRatio")) {
+        _parseAspectRatio(&value, &marker->align, &marker->meetOrSlice);
+    } else if (STR_AS(key, "overflow")) {
+        if (STR_AS(value, "visible")) marker->overflowVisible = true;
     } else {
         return _attrParseGNode(data, key, value);
     }
@@ -1504,6 +1599,23 @@ static SvgNode* _createSymbolNode(SvgParserContext* ctx, SvgNode* parent, const 
     ctx->parser->node->node.symbol.meetOrSlice = AspectRatioMeetOrSlice::Meet;
 
     func(buf, bufLength, _attrParseSymbolNode, ctx);
+
+    return ctx->parser->node;
+}
+
+static SvgNode* _createMarkerNode(SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    ctx->parser->node = _createNode(parent, SvgNodeType::Marker);
+    if (!ctx->parser->node) return nullptr;
+
+    ctx->parser->node->style->display = false;
+    ctx->parser->node->node.marker.width = 3.0f;
+    ctx->parser->node->node.marker.height = 3.0f;
+    ctx->parser->node->node.marker.align = AspectRatioAlign::XMidYMid;
+    ctx->parser->node->node.marker.meetOrSlice = AspectRatioMeetOrSlice::Meet;
+    ctx->parser->node->node.marker.markerUnits = SvgMarkerUnits::StrokeWidth;
+
+    func(buf, bufLength, _attrParseMarkerNode, ctx);
 
     return ctx->parser->node;
 }
@@ -2189,6 +2301,7 @@ static constexpr struct
     {"clipPath", sizeof("clipPath"), _createClipPathNode},
     {"style", sizeof("style"), _createCssStyleNode},
     {"symbol", sizeof("symbol"), _createSymbolNode},
+    {"marker", sizeof("marker"), _createMarkerNode},
     {"filter", sizeof("filter"), _createFilterNode}
 };
 
@@ -2912,6 +3025,11 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!(child->stroke.flags & SvgStrokeFlags::Cap)) child->stroke.cap = parent->stroke.cap;
     if (!(child->stroke.flags & SvgStrokeFlags::Join)) child->stroke.join = parent->stroke.join;
     if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
+
+    //Marker
+    if (!(child->flags & SvgStyleFlags::MarkerStart) && parent->marker[0].url) _copyId(&child->marker[0].url, parent->marker[0].url);
+    if (!(child->flags & SvgStyleFlags::MarkerMid) && parent->marker[1].url) _copyId(&child->marker[1].url, parent->marker[1].url);
+    if (!(child->flags & SvgStyleFlags::MarkerEnd) && parent->marker[2].url) _copyId(&child->marker[2].url, parent->marker[2].url);
 }
 
 
@@ -2963,6 +3081,11 @@ static void _styleCopy(SvgStyleProperty* to, const SvgStyleProperty* from)
     if (from->stroke.flags & SvgStrokeFlags::Cap) to->stroke.cap = from->stroke.cap;
     if (from->stroke.flags & SvgStrokeFlags::Join) to->stroke.join = from->stroke.join;
     if (from->stroke.flags & SvgStrokeFlags::Miterlimit) to->stroke.miterlimit = from->stroke.miterlimit;
+
+    //Marker
+    if (from->flags & SvgStyleFlags::MarkerStart) { if (from->marker[0].url) _copyId(&to->marker[0].url, from->marker[0].url); }
+    if (from->flags & SvgStyleFlags::MarkerMid) { if (from->marker[1].url) _copyId(&to->marker[1].url, from->marker[1].url); }
+    if (from->flags & SvgStyleFlags::MarkerEnd) { if (from->marker[2].url) _copyId(&to->marker[2].url, from->marker[2].url); }
 }
 
 
@@ -2979,6 +3102,7 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
     svgUtilReplace(&to->style->clipPath.url, from->style->clipPath.url);
     svgUtilReplace(&to->style->mask.url, from->style->mask.url);
     svgUtilReplace(&to->style->filter.url, from->style->filter.url);
+    for (int i = 0; i < 3; ++i) svgUtilReplace(&to->style->marker[i].url, from->style->marker[i].url);
 
     //Copy node attribute
     switch (from->type) {
@@ -3323,10 +3447,11 @@ static void _free(SvgStyleProperty* style)
 {
     if (!style) return;
 
-    //style->clipPath.node/mask.node/filter.node has only the addresses of node. Therefore, node is released from _freeNode.
+    //style->clipPath.node/mask.node/filter.node/marker.node has only the addresses of node. Therefore, node is released from _freeNode.
     tvg::free(style->clipPath.url);
     tvg::free(style->mask.url);
     tvg::free(style->filter.url);
+    for (int i = 0; i < 3; ++i) tvg::free(style->marker[i].url);
     tvg::free(style->cssClass);
 
     if (style->fill.paint.gradient) {
@@ -3641,6 +3766,18 @@ static void _updateFilter(SvgNode* node, SvgNode* root)
     }
 }
 
+static void _updateMarker(SvgNode* node, SvgNode* root)
+{
+    for (int i = 0; i < 3; ++i) {
+        if (node->style->marker[i].url && !node->style->marker[i].node) {
+            node->style->marker[i].node = _findNodeById(root, node->style->marker[i].url);
+        }
+    }
+    ARRAY_FOREACH(child, node->child) {
+        _updateMarker(*child, root);
+    }
+}
+
 static bool _svgLoaderParserForValidCheckXmlOpen(SvgParserContext* ctx, const char* content, unsigned int length)
 {
     const char* attrs = nullptr;
@@ -3732,6 +3869,9 @@ void SvgLoader::run(unsigned tid)
 
                 _updateFilter(ctx.doc, ctx.doc);
                 if (defs) _updateFilter(ctx.doc, defs);
+
+                _updateMarker(ctx.doc, ctx.doc);
+                if (defs) _updateMarker(ctx.doc, defs);
 
                 _updateStyle(ctx.doc, nullptr);
                 if (defs) _updateStyle(defs, nullptr);

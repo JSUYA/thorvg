@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <defs>
+    <!-- Simple arrow marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="red"/>
+    </marker>
+
+    <!-- Circle marker -->
+    <marker id="circle" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="5" markerHeight="5">
+      <circle cx="5" cy="5" r="4" fill="blue"/>
+    </marker>
+
+    <!-- Square marker with auto-start-reverse -->
+    <marker id="arrowReverse" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="green"/>
+    </marker>
+
+    <!-- Marker with fixed orientation -->
+    <marker id="fixedAngle" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="5" markerHeight="5" orient="45">
+      <rect x="1" y="1" width="8" height="8" fill="purple"/>
+    </marker>
+
+    <!-- Marker with userSpaceOnUse -->
+    <marker id="userSpace" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse"
+            orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="orange"/>
+    </marker>
+
+    <!-- Marker with overflow visible -->
+    <marker id="overflowMarker" viewBox="0 0 10 10" refX="5" refY="5"
+            markerWidth="4" markerHeight="4" orient="auto" overflow="visible">
+      <circle cx="5" cy="5" r="8" fill="rgba(255,0,0,0.3)"/>
+      <circle cx="5" cy="5" r="4" fill="red"/>
+    </marker>
+  </defs>
+
+  <!-- Test 1: Arrow markers on a polyline (marker-start, marker-mid, marker-end) -->
+  <text x="10" y="25" font-size="14" fill="black">1. Arrow markers on polyline</text>
+  <polyline points="50,60 150,100 250,60 350,100"
+            fill="none" stroke="black" stroke-width="2"
+            marker-start="url(#arrow)" marker-mid="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- Test 2: Circle markers on a path with curves -->
+  <text x="10" y="145" font-size="14" fill="black">2. Circle markers on cubic bezier path</text>
+  <path d="M 50,180 C 100,140 200,220 250,180 C 300,140 350,220 400,180"
+        fill="none" stroke="black" stroke-width="2"
+        marker-start="url(#circle)" marker-mid="url(#circle)" marker-end="url(#circle)"/>
+
+  <!-- Test 3: auto-start-reverse orientation -->
+  <text x="10" y="255" font-size="14" fill="black">3. auto-start-reverse (bidirectional arrows)</text>
+  <line x1="50" y1="280" x2="350" y2="280"
+        stroke="black" stroke-width="2"
+        marker-start="url(#arrowReverse)" marker-end="url(#arrowReverse)"/>
+
+  <!-- Test 4: Fixed angle marker -->
+  <text x="10" y="325" font-size="14" fill="black">4. Fixed 45deg orientation</text>
+  <polyline points="50,360 150,350 250,360 350,350"
+            fill="none" stroke="black" stroke-width="2"
+            marker-start="url(#fixedAngle)" marker-mid="url(#fixedAngle)" marker-end="url(#fixedAngle)"/>
+
+  <!-- Test 5: userSpaceOnUse markerUnits -->
+  <text x="10" y="405" font-size="14" fill="black">5. userSpaceOnUse markerUnits</text>
+  <polyline points="50,440 150,430 250,440 350,430"
+            fill="none" stroke="black" stroke-width="4"
+            marker-start="url(#userSpace)" marker-mid="url(#userSpace)" marker-end="url(#userSpace)"/>
+
+  <!-- Test 6: Markers on polygon (closed shape) -->
+  <text x="420" y="25" font-size="14" fill="black">6. Markers on polygon</text>
+  <polygon points="480,60 560,60 580,130 460,130"
+           fill="none" stroke="black" stroke-width="2"
+           marker-start="url(#circle)" marker-mid="url(#circle)" marker-end="url(#circle)"/>
+
+  <!-- Test 7: Markers on a line -->
+  <text x="420" y="175" font-size="14" fill="black">7. Markers on line</text>
+  <line x1="450" y1="200" x2="600" y2="200"
+        stroke="black" stroke-width="2"
+        marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- Test 8: marker shorthand (CSS style) -->
+  <text x="420" y="255" font-size="14" fill="black">8. CSS marker shorthand</text>
+  <polyline points="450,280 530,270 610,280 690,270"
+            fill="none" stroke="black" stroke-width="2"
+            style="marker: url(#circle)"/>
+
+  <!-- Test 9: Marker with different stroke widths (strokeWidth units) -->
+  <text x="420" y="325" font-size="14" fill="black">9. Marker scales with stroke-width</text>
+  <line x1="450" y1="350" x2="600" y2="350"
+        stroke="black" stroke-width="1"
+        marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <line x1="450" y1="370" x2="600" y2="370"
+        stroke="black" stroke-width="3"
+        marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <line x1="450" y1="400" x2="600" y2="400"
+        stroke="black" stroke-width="5"
+        marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- Test 10: Overflow visible marker -->
+  <text x="420" y="435" font-size="14" fill="black">10. Overflow visible marker</text>
+  <polyline points="450,470 550,460 650,470"
+            fill="none" stroke="black" stroke-width="2"
+            marker-start="url(#overflowMarker)" marker-mid="url(#overflowMarker)" marker-end="url(#overflowMarker)"/>
+
+  <!-- Test 11: Marker-mid only -->
+  <text x="10" y="490" font-size="14" fill="black">11. marker-mid only</text>
+  <polyline points="50,520 120,510 190,530 260,510 330,530"
+            fill="none" stroke="gray" stroke-width="2"
+            marker-mid="url(#circle)"/>
+
+  <!-- Test 12: Path with closepath - marker at join point -->
+  <text x="420" y="510" font-size="14" fill="black">12. Path with closepath</text>
+  <path d="M 450,540 L 530,540 L 490,580 Z"
+        fill="none" stroke="black" stroke-width="2"
+        marker-start="url(#arrow)" marker-mid="url(#circle)" marker-end="url(#arrow)"/>
+</svg>

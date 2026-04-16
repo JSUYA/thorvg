@@ -166,6 +166,9 @@ void cssCopyStyleAttr(SvgNode* to, const SvgNode* from, bool overwrite)
 
     if (from->style->clipPath.url) svgUtilReplace(&to->style->clipPath.url, from->style->clipPath.url);
     if (from->style->mask.url) svgUtilReplace(&to->style->mask.url, from->style->mask.url);
+    for (int i = 0; i < 3; ++i) {
+        if (from->style->marker[i].url) svgUtilReplace(&to->style->marker[i].url, from->style->marker[i].url);
+    }
 }
 
 

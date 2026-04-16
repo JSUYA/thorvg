@@ -82,6 +82,7 @@ enum struct SvgNodeType : uint16_t
     Mask,
     CssStyle,
     Symbol,
+    Marker,
     Filter,
     GaussianBlur,
     Unknown
@@ -168,7 +169,10 @@ enum struct SvgStyleFlags
     StrokeMiterlimit = 0x20000,
     StrokeDashOffset = 0x40000,
     Filter = 0x80000,
-    BlendMode = 0x100000
+    BlendMode = 0x100000,
+    MarkerStart = 0x200000,
+    MarkerMid = 0x400000,
+    MarkerEnd = 0x800000
 };
 
 constexpr bool operator&(SvgStyleFlags a, SvgStyleFlags b)
@@ -234,6 +238,19 @@ enum struct SvgMaskType : uint8_t
 {
     Luminance = 0,
     Alpha
+};
+
+enum struct SvgMarkerOrient : uint8_t
+{
+    Fixed = 0,
+    Auto,
+    AutoStartReverse
+};
+
+enum struct SvgMarkerUnits : uint8_t
+{
+    StrokeWidth = 0,
+    UserSpaceOnUse
 };
 
 enum struct SvgXmlSpace : uint8_t
@@ -415,6 +432,20 @@ struct SvgFilterNode
     bool primitiveUserSpace;
 };
 
+struct SvgMarkerNode
+{
+    float refX, refY;
+    float width, height;
+    float vx, vy, vw, vh;
+    float angle;
+    AspectRatioAlign align;
+    AspectRatioMeetOrSlice meetOrSlice;
+    SvgMarkerOrient orient;
+    SvgMarkerUnits markerUnits;
+    bool hasViewBox;
+    bool overflowVisible;
+};
+
 struct SvgLinearGradient
 {
     float x1, y1, x2, y2;
@@ -509,6 +540,12 @@ struct SvgFilter
     SvgNode* node;
 };
 
+struct SvgMarkerRef
+{
+    char* url;
+    SvgNode* node;
+};
+
 struct SvgStyleProperty
 {
     SvgStyleFill fill;
@@ -516,6 +553,7 @@ struct SvgStyleProperty
     SvgComposite clipPath;
     SvgComposite mask;
     SvgFilter filter;
+    SvgMarkerRef marker[3];  //0: start, 1: mid, 2: end
     int opacity;
     SvgColor color;
     char* cssClass;
@@ -554,6 +592,7 @@ struct SvgNode
         SvgSymbolNode symbol;
         SvgTextNode text;
         SvgFilterNode filter;
+        SvgMarkerNode marker;
         SvgGaussianBlurNode gaussianBlur;
     } node;
     SvgXmlSpace xmlSpace = SvgXmlSpace::None;
