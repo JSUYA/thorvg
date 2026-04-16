@@ -922,6 +922,9 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
     text->text(processedText);
     tvg::free(processedText);
 
+    //Apply text-anchor
+    if (textNode->textAnchor > 0.0f) text->align(textNode->textAnchor, 0.0f);
+
     _applyTextFill(node->style, text, vBox);
 
     auto p = _applyFilter(ctx, text, node, vBox, svgPath);

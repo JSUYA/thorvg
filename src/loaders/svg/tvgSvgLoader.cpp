@@ -1149,6 +1149,14 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
         return true;
     }
 
+    //text-specific style attributes
+    if (node->type == SvgNodeType::Text && STR_AS(key, "text-anchor")) {
+        if (STR_AS(value, "middle")) node->node.text.textAnchor = 0.5f;
+        else if (STR_AS(value, "end")) node->node.text.textAnchor = 1.0f;
+        else node->node.text.textAnchor = 0.0f;
+        return true;
+    }
+
     int sz = strlen(key);
     for (unsigned int i = 0; i < sizeof(styleTags) / sizeof(styleTags[0]); i++) {
         if (styleTags[i].sz - 1 == sz && !strncmp(styleTags[i].tag, key, sz)) {
@@ -2148,6 +2156,7 @@ static SvgNode* _createTextNode(SvgParserContext* ctx, SvgNode* parent, const ch
     if (!ctx->parser->node) return nullptr;
 
     ctx->parser->node->node.text.fontSize = DEFAULT_FONT_SIZE;
+    ctx->parser->node->node.text.textAnchor = 0.0f;
 
     func(buf, bufLength, _attrPrescanTextFontSize, ctx);
     func(buf, bufLength, _attrParseTextNode, ctx);
@@ -3030,6 +3039,7 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
             to->node.text.x = from->node.text.x;
             to->node.text.y = from->node.text.y;
             to->node.text.fontSize = from->node.text.fontSize;
+            to->node.text.textAnchor = from->node.text.textAnchor;
             svgUtilReplace(&to->node.text.text, from->node.text.text);
             svgUtilReplace(&to->node.text.fontFamily, from->node.text.fontFamily);
             break;
