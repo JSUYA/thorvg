@@ -37,10 +37,6 @@
 
 static bool _appendClipShape(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath, const Matrix* transform);
 static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, const Box& vBox, const string& svgPath, bool mask, int depth);
-static Scene* _useBuildHelper(SvgParserContext& ctx, const SvgNode* node, const Box& vBox, const string& svgPath, int depth);
-static Paint* _imageBuildHelper(SvgParserContext& ctx, SvgNode* node, const Box& vBox, const string& svgPath);
-static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const Box& vBox, const string& svgPath);
-static Paint* _shapeBuildHelper(SvgParserContext& ctx, SvgNode* node, const Box& vBox, const string& svgPath);
 static Matrix _calculateAspectRatioMatrix(AspectRatioAlign align, AspectRatioMeetOrSlice meetOrSlice, float width, float height, const Box& box);
 
 static inline bool _isGroupType(SvgNodeType type)
@@ -511,8 +507,8 @@ static bool _recognizeShape(SvgNode* node, Shape* shape)
 struct MarkerVertex
 {
     Point pos;
-    float inAngle;   //angle of incoming segment
-    float outAngle;  //angle of outgoing segment
+    float inAngle;   //angle of incoming segment (degrees)
+    float outAngle;  //angle of outgoing segment (degrees)
     bool hasIn;
     bool hasOut;
     bool isStart;    //first vertex of a subpath
@@ -520,89 +516,62 @@ struct MarkerVertex
 };
 
 
+static float _dirAngle(const Point& dir)
+{
+    return tvg::rad2deg(tvg::atan2(dir.y, dir.x));
+}
+
+
 static float _cubicTangentAngle(const Point& p0, const Point& p1, const Point& p2, const Point& p3, bool atStart)
 {
     Point dir;
     if (atStart) {
         dir = p1 - p0;
-        if (tvg::zero(dir.x) && tvg::zero(dir.y)) dir = p2 - p0;
-        if (tvg::zero(dir.x) && tvg::zero(dir.y)) dir = p3 - p0;
+        if (tvg::zero(dir)) dir = p2 - p0;
+        if (tvg::zero(dir)) dir = p3 - p0;
     } else {
         dir = p3 - p2;
-        if (tvg::zero(dir.x) && tvg::zero(dir.y)) dir = p3 - p1;
-        if (tvg::zero(dir.x) && tvg::zero(dir.y)) dir = p3 - p0;
+        if (tvg::zero(dir)) dir = p3 - p1;
+        if (tvg::zero(dir)) dir = p3 - p0;
     }
-    return tvg::rad2deg(::atan2f(dir.y, dir.x));
+    return _dirAngle(dir);
 }
 
 
 static void _extractVertices(Shape* shape, Array<MarkerVertex>& vertices)
 {
-    const PathCommand* cmds = nullptr;
-    const Point* pts = nullptr;
-    uint32_t cmdsCnt = 0, ptsCnt = 0;
+    auto& path = to<ShapeImpl>(shape)->rs.path;
+    if (path.cmds.empty() || path.pts.empty()) return;
 
-    shape->path(&cmds, &cmdsCnt, &pts, &ptsCnt);
-    if (!cmds || !pts || cmdsCnt == 0) return;
-
-    uint32_t pi = 0;      //point index
-    Point subpathStart;    //first point of current subpath
+    auto cmds = path.cmds.data;
+    auto pts = path.pts.data;
+    uint32_t pi = 0;
     int subpathFirstIdx = -1;
 
-    for (uint32_t ci = 0; ci < cmdsCnt; ++ci) {
+    for (uint32_t ci = 0; ci < path.cmds.count; ++ci) {
         switch (cmds[ci]) {
             case PathCommand::MoveTo: {
-                //Mark previous vertex as end of subpath
                 if (!vertices.empty()) vertices.last().isEnd = true;
-                subpathStart = pts[pi];
-                MarkerVertex v;
-                v.pos = pts[pi];
-                v.inAngle = 0.0f;
-                v.outAngle = 0.0f;
-                v.hasIn = false;
-                v.hasOut = false;
-                v.isStart = true;
-                v.isEnd = false;
-                vertices.push(v);
+                vertices.push({pts[pi], 0.0f, 0.0f, false, false, true, false});
                 subpathFirstIdx = vertices.count - 1;
                 ++pi;
                 break;
             }
             case PathCommand::LineTo: {
                 auto& prev = vertices.last();
-                auto angle = tvg::rad2deg(::atan2f(pts[pi].y - prev.pos.y, pts[pi].x - prev.pos.x));
+                auto angle = _dirAngle(pts[pi] - prev.pos);
                 prev.outAngle = angle;
                 prev.hasOut = true;
-
-                MarkerVertex v;
-                v.pos = pts[pi];
-                v.inAngle = angle;
-                v.hasIn = true;
-                v.outAngle = 0.0f;
-                v.hasOut = false;
-                v.isStart = false;
-                v.isEnd = false;
-                vertices.push(v);
+                vertices.push({pts[pi], angle, 0.0f, true, false, false, false});
                 ++pi;
                 break;
             }
             case PathCommand::CubicTo: {
                 auto& prev = vertices.last();
-                auto outAngle = _cubicTangentAngle(prev.pos, pts[pi], pts[pi + 1], pts[pi + 2], true);
-                prev.outAngle = outAngle;
+                prev.outAngle = _cubicTangentAngle(prev.pos, pts[pi], pts[pi + 1], pts[pi + 2], true);
                 prev.hasOut = true;
-
                 auto inAngle = _cubicTangentAngle(prev.pos, pts[pi], pts[pi + 1], pts[pi + 2], false);
-
-                MarkerVertex v;
-                v.pos = pts[pi + 2];
-                v.inAngle = inAngle;
-                v.hasIn = true;
-                v.outAngle = 0.0f;
-                v.hasOut = false;
-                v.isStart = false;
-                v.isEnd = false;
-                vertices.push(v);
+                vertices.push({pts[pi + 2], inAngle, 0.0f, true, false, false, false});
                 pi += 3;
                 break;
             }
@@ -610,12 +579,10 @@ static void _extractVertices(Shape* shape, Array<MarkerVertex>& vertices)
                 if (subpathFirstIdx >= 0 && vertices.count > 0) {
                     auto& last = vertices.last();
                     auto& first = vertices[subpathFirstIdx];
-                    //The close command draws a line from current to subpath start
-                    auto angle = tvg::rad2deg(::atan2f(first.pos.y - last.pos.y, first.pos.x - last.pos.x));
+                    auto angle = _dirAngle(first.pos - last.pos);
                     last.outAngle = angle;
                     last.hasOut = true;
                     last.isEnd = true;
-                    //Update the first vertex's incoming angle from the close line
                     first.inAngle = angle;
                     first.hasIn = true;
                 }
@@ -623,7 +590,6 @@ static void _extractVertices(Shape* shape, Array<MarkerVertex>& vertices)
             }
         }
     }
-    //Mark last vertex as end
     if (!vertices.empty()) vertices.last().isEnd = true;
 }
 
@@ -631,40 +597,15 @@ static void _extractVertices(Shape* shape, Array<MarkerVertex>& vertices)
 static float _markerAngle(const MarkerVertex& v)
 {
     if (v.hasIn && v.hasOut) {
-        //bisector angle
         auto inRad = tvg::deg2rad(v.inAngle);
         auto outRad = tvg::deg2rad(v.outAngle);
-        auto dx = cosf(inRad) + cosf(outRad);
-        auto dy = sinf(inRad) + sinf(outRad);
-        if (tvg::zero(dx) && tvg::zero(dy)) return v.inAngle;
-        return tvg::rad2deg(::atan2f(dy, dx));
+        Point bisector = {cosf(inRad) + cosf(outRad), sinf(inRad) + sinf(outRad)};
+        if (tvg::zero(bisector)) return v.inAngle;
+        return _dirAngle(bisector);
     }
     if (v.hasIn) return v.inAngle;
     if (v.hasOut) return v.outAngle;
     return 0.0f;
-}
-
-
-static Scene* _buildMarkerScene(SvgParserContext& ctx, const SvgNode* markerNode, const Box& vBox, const string& svgPath, int depth)
-{
-    auto scene = Scene::gen();
-    if (!markerNode->style->display && markerNode->child.count == 0) return scene;
-
-    ARRAY_FOREACH(p, markerNode->child) {
-        auto child = *p;
-        Paint* paint = nullptr;
-        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter || child->type == SvgNodeType::Marker) continue;
-        if (_isGroupType(child->type)) {
-            if (child->type == SvgNodeType::Use) paint = _useBuildHelper(ctx, child, vBox, svgPath, depth + 1);
-            else paint = _sceneBuildHelper(ctx, child, vBox, svgPath, false, depth + 1);
-        } else {
-            if (child->type == SvgNodeType::Image) paint = _imageBuildHelper(ctx, child, vBox, svgPath);
-            else if (child->type == SvgNodeType::Text) paint = _textBuildHelper(ctx, child, vBox, svgPath);
-            else paint = _shapeBuildHelper(ctx, child, vBox, svgPath);
-        }
-        if (paint) scene->add(paint);
-    }
-    return scene;
 }
 
 
@@ -691,37 +632,24 @@ static Paint* _applyMarkers(SvgParserContext& ctx, SvgNode* node, Shape* shape, 
         if (v.isStart && markerStartNode) mNode = markerStartNode;
         else if (v.isEnd && !v.isStart && markerEndNode) mNode = markerEndNode;
         else if (!v.isStart && !v.isEnd && markerMidNode) mNode = markerMidNode;
-
-        //Also apply mid marker to end/start that are within a subpath (not first or last overall)
-        if (!mNode && markerMidNode && !v.isStart && !v.isEnd) mNode = markerMidNode;
         if (!mNode) continue;
 
         auto& marker = mNode->node.marker;
 
-        //Build marker content
-        Box markerVBox;
-        if (marker.hasViewBox) {
-            markerVBox = {marker.vx, marker.vy, marker.vw, marker.vh};
-        } else {
-            markerVBox = {0, 0, marker.width, marker.height};
-        }
+        //Build marker content using _sceneBuildHelper
+        Box markerVBox = marker.hasViewBox ? Box{marker.vx, marker.vy, marker.vw, marker.vh}
+                                           : Box{0, 0, marker.width, marker.height};
 
-        auto content = _buildMarkerScene(ctx, mNode, markerVBox, svgPath, 0);
+        auto content = _sceneBuildHelper(ctx, mNode, markerVBox, svgPath, false, 0);
         if (!content) continue;
 
-        //Build the transformation:
-        // 1. Translate to vertex position
-        // 2. Rotate according to orient
-        // 3. Scale by strokeWidth if markerUnits == strokeWidth
-        // 4. Apply viewBox transformation
-        // 5. Translate by (-refX, -refY)
-
+        //Build transformation: translate -> rotate -> scale -> viewBox -> refXY
         auto m = tvg::identity();
 
-        //Step 1: translate to vertex
+        //1. translate to vertex
         translateR(&m, v.pos);
 
-        //Step 2: rotate
+        //2. rotate
         float angle = 0.0f;
         if (marker.orient == SvgMarkerOrient::Auto) {
             angle = _markerAngle(v);
@@ -731,35 +659,31 @@ static Paint* _applyMarkers(SvgParserContext& ctx, SvgNode* node, Shape* shape, 
         } else {
             angle = marker.angle;
         }
+
+        //rotate() modifies identity-like matrix in-place (same as tvgMath.cpp rotate())
         if (!tvg::zero(angle)) {
-            auto rad = tvg::deg2rad(angle);
-            auto c = cosf(rad);
-            auto s = sinf(rad);
-            Matrix rot = {c, -s, 0, s, c, 0, 0, 0, 1};
+            Matrix rot = tvg::identity();
+            rotate(&rot, angle);
             m *= rot;
         }
 
-        //Step 3: scale by strokeWidth if needed
+        //3. scale by strokeWidth if markerUnits == strokeWidth
         if (marker.markerUnits == SvgMarkerUnits::StrokeWidth) {
-            Matrix scale = {strokeWidth, 0, 0, 0, strokeWidth, 0, 0, 0, 1};
-            m *= scale;
+            scaleR(&m, {strokeWidth, strokeWidth});
         }
 
-        //Step 4: viewBox transformation
+        //4. viewBox transformation (same pattern as _useBuildHelper for symbols)
         if (marker.hasViewBox && marker.vw > 0 && marker.vh > 0) {
             if (!tvg::equal(marker.width, marker.vw) || !tvg::equal(marker.height, marker.vh)) {
                 Box box = {marker.vx, marker.vy, marker.vw, marker.vh};
-                auto vm = _calculateAspectRatioMatrix(marker.align, marker.meetOrSlice, marker.width, marker.height, box);
-                m *= vm;
+                m *= _calculateAspectRatioMatrix(marker.align, marker.meetOrSlice, marker.width, marker.height, box);
             } else if (!tvg::zero(marker.vx) || !tvg::zero(marker.vy)) {
-                Matrix vt = {1, 0, -marker.vx, 0, 1, -marker.vy, 0, 0, 1};
-                m *= vt;
+                translateR(&m, {-marker.vx, -marker.vy});
             }
         }
 
-        //Step 5: translate by (-refX, -refY)
-        Matrix refTranslate = {1, 0, -marker.refX, 0, 1, -marker.refY, 0, 0, 1};
-        m *= refTranslate;
+        //5. translate by (-refX, -refY)
+        translateR(&m, {-marker.refX, -marker.refY});
 
         content->transform(m);
 
@@ -768,19 +692,16 @@ static Paint* _applyMarkers(SvgParserContext& ctx, SvgNode* node, Shape* shape, 
             auto clip = Shape::gen();
             clip->appendRect(0, 0, marker.width, marker.height);
 
-            //Clip transform: same as content but without viewBox and refXY steps
+            //Clip transform: steps 1-3 only (without viewBox and refXY)
             auto clipM = tvg::identity();
             translateR(&clipM, v.pos);
             if (!tvg::zero(angle)) {
-                auto rad = tvg::deg2rad(angle);
-                auto c = cosf(rad);
-                auto s = sinf(rad);
-                Matrix rot = {c, -s, 0, s, c, 0, 0, 0, 1};
+                Matrix rot = tvg::identity();
+                rotate(&rot, angle);
                 clipM *= rot;
             }
             if (marker.markerUnits == SvgMarkerUnits::StrokeWidth) {
-                Matrix scale = {strokeWidth, 0, 0, 0, strokeWidth, 0, 0, 0, 1};
-                clipM *= scale;
+                scaleR(&clipM, {strokeWidth, strokeWidth});
             }
             clip->transform(clipM);
             content->clip(clip);

@@ -540,20 +540,14 @@ struct SvgFilter
     SvgNode* node;
 };
 
-struct SvgMarkerRef
-{
-    char* url;
-    SvgNode* node;
-};
-
 struct SvgStyleProperty
 {
     SvgStyleFill fill;
     SvgStyleStroke stroke;
     SvgComposite clipPath;
     SvgComposite mask;
+    SvgComposite marker[3];  //0: start, 1: mid, 2: end
     SvgFilter filter;
-    SvgMarkerRef marker[3];  //0: start, 1: mid, 2: end
     int opacity;
     SvgColor color;
     char* cssClass;
