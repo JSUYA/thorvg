@@ -390,12 +390,25 @@ struct SvgCssStyleNode
 {
 };
 
+enum struct SvgDominantBaseline : uint8_t
+{
+    Auto = 0,       //Same as Alphabetic
+    Middle,
+    Hanging,
+    Central,
+    Mathematical,
+    Ideographic,
+    TextTop,
+    TextBottom
+};
+
 struct SvgTextNode
 {
     char* text;
     char* fontFamily;
     float x, y;
     float fontSize;
+    SvgDominantBaseline dominantBaseline;
 };
 
 struct SvgGaussianBlurNode

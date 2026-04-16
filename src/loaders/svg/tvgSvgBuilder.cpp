@@ -900,7 +900,26 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
     if (node->transform) textTransform = *node->transform;
     else textTransform = tvg::identity();
 
-    translateR(&textTransform, {node->node.text.x, node->node.text.y - textNode->fontSize});
+    //Compute baseline offset based on dominant-baseline
+    auto baselineOffset = textNode->fontSize;  //default: auto/alphabetic
+    switch (textNode->dominantBaseline) {
+        case SvgDominantBaseline::TextTop:
+            baselineOffset = 0.0f;
+            break;
+        case SvgDominantBaseline::Hanging:
+            baselineOffset = textNode->fontSize * 0.2f;
+            break;
+        case SvgDominantBaseline::Middle:
+        case SvgDominantBaseline::Central:
+            baselineOffset = textNode->fontSize * 0.5f;
+            break;
+        case SvgDominantBaseline::Mathematical:
+            baselineOffset = textNode->fontSize * 0.58f;
+            break;
+        default:  //Auto, Alphabetic, Ideographic, TextBottom
+            break;
+    }
+    translateR(&textTransform, {node->node.text.x, node->node.text.y - baselineOffset});
     text->transform(textTransform);
 
     //TODO: handle def values of font and size as used in a system?

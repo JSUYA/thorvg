@@ -1149,6 +1149,19 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
         return true;
     }
 
+    //text-specific style attributes
+    if (node->type == SvgNodeType::Text && (STR_AS(key, "dominant-baseline") || STR_AS(key, "alignment-baseline"))) {
+        if (STR_AS(value, "middle")) node->node.text.dominantBaseline = SvgDominantBaseline::Middle;
+        else if (STR_AS(value, "hanging")) node->node.text.dominantBaseline = SvgDominantBaseline::Hanging;
+        else if (STR_AS(value, "central")) node->node.text.dominantBaseline = SvgDominantBaseline::Central;
+        else if (STR_AS(value, "mathematical")) node->node.text.dominantBaseline = SvgDominantBaseline::Mathematical;
+        else if (STR_AS(value, "ideographic")) node->node.text.dominantBaseline = SvgDominantBaseline::Ideographic;
+        else if (STR_AS(value, "text-before-edge") || STR_AS(value, "text-top")) node->node.text.dominantBaseline = SvgDominantBaseline::TextTop;
+        else if (STR_AS(value, "text-after-edge") || STR_AS(value, "text-bottom")) node->node.text.dominantBaseline = SvgDominantBaseline::TextBottom;
+        else node->node.text.dominantBaseline = SvgDominantBaseline::Auto;
+        return true;
+    }
+
     int sz = strlen(key);
     for (unsigned int i = 0; i < sizeof(styleTags) / sizeof(styleTags[0]); i++) {
         if (styleTags[i].sz - 1 == sz && !strncmp(styleTags[i].tag, key, sz)) {
@@ -2148,6 +2161,7 @@ static SvgNode* _createTextNode(SvgParserContext* ctx, SvgNode* parent, const ch
     if (!ctx->parser->node) return nullptr;
 
     ctx->parser->node->node.text.fontSize = DEFAULT_FONT_SIZE;
+    ctx->parser->node->node.text.dominantBaseline = SvgDominantBaseline::Auto;
 
     func(buf, bufLength, _attrPrescanTextFontSize, ctx);
     func(buf, bufLength, _attrParseTextNode, ctx);
@@ -3030,6 +3044,7 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
             to->node.text.x = from->node.text.x;
             to->node.text.y = from->node.text.y;
             to->node.text.fontSize = from->node.text.fontSize;
+            to->node.text.dominantBaseline = from->node.text.dominantBaseline;
             svgUtilReplace(&to->node.text.text, from->node.text.text);
             svgUtilReplace(&to->node.text.fontFamily, from->node.text.fontFamily);
             break;
