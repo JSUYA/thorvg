@@ -2109,7 +2109,9 @@ static constexpr struct
     size_t offset;
 } textTags[] = {
     {"x", SvgParserLengthType::Horizontal, sizeof("x"), offsetof(SvgTextNode, x)},
-    {"y", SvgParserLengthType::Vertical, sizeof("y"), offsetof(SvgTextNode, y)}};
+    {"y", SvgParserLengthType::Vertical, sizeof("y"), offsetof(SvgTextNode, y)},
+    {"dx", SvgParserLengthType::Horizontal, sizeof("dx"), offsetof(SvgTextNode, dx)},
+    {"dy", SvgParserLengthType::Vertical, sizeof("dy"), offsetof(SvgTextNode, dy)}};
 
 static bool _attrPrescanTextFontSize(void* data, const char* key, const char* value)
 {
@@ -3159,7 +3161,7 @@ static void _spliceTspanClose(SvgParserContext* ctx)
     if (!cur || cur->type != SvgNodeType::Tspan) return;
 
     auto& t = cur->node.text;
-    bool unpositioned = (t.x == FLT_MAX && t.y == FLT_MAX);
+    bool unpositioned = (t.x == FLT_MAX && t.y == FLT_MAX && t.dx == 0.0f && t.dy == 0.0f);
     bool noOverride = (t.fontSize <= 0.0f && !t.fontFamily && cur->xmlSpace == SvgXmlSpace::None);
 
     if (t.text && unpositioned && noOverride && cur->parent) {
