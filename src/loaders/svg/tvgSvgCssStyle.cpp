@@ -150,6 +150,11 @@ static void _copyStyle(SvgStyleProperty* to, const SvgStyleProperty* from, bool 
         to->flags |= SvgStyleFlags::TextAnchor;
         if (from->flagsImportance & SvgStyleFlags::TextAnchor) to->flagsImportance |= SvgStyleFlags::TextAnchor;
     }
+    if (((from->flags & SvgStyleFlags::LetterSpacing) && (overwrite || !(to->flags & SvgStyleFlags::LetterSpacing))) || _isImportanceApplicable(to->flagsImportance, from->flagsImportance, SvgStyleFlags::LetterSpacing)) {
+        to->letterSpacing = from->letterSpacing;
+        to->flags |= SvgStyleFlags::LetterSpacing;
+        if (from->flagsImportance & SvgStyleFlags::LetterSpacing) to->flagsImportance |= SvgStyleFlags::LetterSpacing;
+    }
 }
 
 

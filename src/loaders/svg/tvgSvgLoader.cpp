@@ -1086,6 +1086,13 @@ static void _handleTextAnchorAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* nod
     else node->style->textAnchor = 0.0f;
 }
 
+static void _handleLetterSpacingAttr(SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    node->style->flags |= SvgStyleFlags::LetterSpacing;
+    if (STR_AS(value, "normal")) node->style->letterSpacing = 0.0f;
+    else node->style->letterSpacing = _toFloat(ctx->parser, value, SvgParserLengthType::Horizontal);
+}
+
 static void _handleCssClassAttr(SvgParserContext* ctx, SvgNode* node, const char* value)
 {
     auto cssClass = &node->style->cssClass;
@@ -1130,7 +1137,8 @@ static constexpr struct
     STYLE_DEF(paint-order, PaintOrder, SvgStyleFlags::PaintOrder),
     STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
     STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode),
-    STYLE_DEF(text-anchor, TextAnchor, SvgStyleFlags::TextAnchor)};
+    STYLE_DEF(text-anchor, TextAnchor, SvgStyleFlags::TextAnchor),
+    STYLE_DEF(letter-spacing, LetterSpacing, SvgStyleFlags::LetterSpacing)};
 
 static SvgXmlSpace _toXmlSpace(const char* str)
 {
@@ -2931,6 +2939,7 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!(child->stroke.flags & SvgStrokeFlags::Join)) child->stroke.join = parent->stroke.join;
     if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
     if (!(child->flags & SvgStyleFlags::TextAnchor)) child->textAnchor = parent->textAnchor;
+    if (!(child->flags & SvgStyleFlags::LetterSpacing)) child->letterSpacing = parent->letterSpacing;
 }
 
 
@@ -2948,6 +2957,7 @@ static void _styleCopy(SvgStyleProperty* to, const SvgStyleProperty* from)
     if (from->flags & SvgStyleFlags::Display) to->display = from->display;
     if (from->flags & SvgStyleFlags::BlendMode) to->blendMode = from->blendMode;
     if (from->flags & SvgStyleFlags::TextAnchor) to->textAnchor = from->textAnchor;
+    if (from->flags & SvgStyleFlags::LetterSpacing) to->letterSpacing = from->letterSpacing;
 
     //Fill
     to->fill.flags = (to->fill.flags | from->fill.flags);

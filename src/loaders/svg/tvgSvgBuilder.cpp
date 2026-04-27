@@ -824,6 +824,18 @@ static Scene* _useBuildHelper(SvgParserContext& ctx, const SvgNode* node, const 
 }
 
 
+static void _applyLetterSpacing(Text* text, float letterSpacing, float fontSize)
+{
+    //SVG letter-spacing is an absolute length added between glyphs, but
+    //Text::spacing() takes a scale factor on glyph advance. Approximate the
+    //average advance of proportional Latin glyphs as half the em (0.5 * fontSize).
+    if (letterSpacing == 0.0f || fontSize <= 0.0f) return;
+    auto scale = 1.0f + 2.0f * letterSpacing / fontSize;
+    if (scale < 0.0f) scale = 0.0f;
+    text->spacing(scale, 1.0f);
+}
+
+
 static void _applyTextFill(SvgStyleProperty* style, Text* text, const Box& vBox)
 {
     //If fill property is nullptr then do nothing
@@ -959,6 +971,7 @@ static void _buildTspanScene(SvgParserContext& ctx, const SvgNode* node, Scene* 
             auto text = _buildText(&textNode, xmlSpace, nullptr);
             if (text) {
                 text->align(child->style->textAnchor, 0.0f);
+                _applyLetterSpacing(text, child->style->letterSpacing, textNode.fontSize);
                 _applyTextFill(child->style, text, vBox);
                 auto paint = _applyFilter(ctx, text, child, vBox, svgPath);
                 paint = _applyComposition(ctx, paint, child, vBox, svgPath);
@@ -984,6 +997,7 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
         auto text = _buildText(textNode, xmlSpace, node->transform);
         if (!text) return nullptr;
         text->align(node->style->textAnchor, 0.0f);
+        _applyLetterSpacing(text, node->style->letterSpacing, textNode->fontSize);
         _applyTextFill(node->style, text, vBox);
         auto p = _applyFilter(ctx, text, node, vBox, svgPath);
         p = _applyComposition(ctx, p, node, vBox, svgPath);
@@ -995,6 +1009,7 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
 
     if (auto text = _buildText(textNode, xmlSpace, nullptr)) {
         text->align(node->style->textAnchor, 0.0f);
+        _applyLetterSpacing(text, node->style->letterSpacing, textNode->fontSize);
         _applyTextFill(node->style, text, vBox);
         scene->add(text);
     }
