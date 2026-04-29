@@ -241,6 +241,42 @@ TEST_CASE("Load SVG Data", "[tvgPicture]")
     Paint::rel(picture);
 }
 
+#ifdef THORVG_CPU_ENGINE_SUPPORT
+
+TEST_CASE("Render SVG image data MIME case", "[tvgPicture]")
+{
+    static const char* svg = "<svg width=\"2\" height=\"2\" viewBox=\"0 0 2 2\" xmlns=\"http://www.w3.org/2000/svg\"><image width=\"2\" height=\"2\" href=\"data:image/PNG;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==\"/></svg>";
+
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        auto canvas = unique_ptr<SwCanvas>(SwCanvas::gen());
+        REQUIRE(canvas);
+
+        uint32_t buffer[2 * 2] = {};
+        REQUIRE(canvas->target(buffer, 2, 2, 2, ColorSpace::ARGB8888) == Result::Success);
+
+        auto picture = Picture::gen();
+        REQUIRE(picture);
+        REQUIRE(picture->load(svg, strlen(svg), "svg") == Result::Success);
+        REQUIRE(canvas->add(picture) == Result::Success);
+        REQUIRE(canvas->update() == Result::Success);
+        REQUIRE(canvas->draw() == Result::Success);
+        REQUIRE(canvas->sync() == Result::Success);
+
+        auto painted = false;
+        for (auto pixel : buffer) {
+            if (pixel != 0) {
+                painted = true;
+                break;
+            }
+        }
+        REQUIRE(painted);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
+#endif
+
 #endif
 
 #ifdef THORVG_PNG_LOADER_SUPPORT
@@ -457,4 +493,3 @@ TEST_CASE("Load WEBP file and render", "[tvgPicture]")
 }
 
 #endif
-
