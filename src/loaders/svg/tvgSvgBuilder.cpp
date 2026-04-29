@@ -37,6 +37,7 @@
 
 static bool _appendClipShape(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath, const Matrix* transform);
 static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, const Box& vBox, const string& svgPath, bool mask, int depth);
+static Paint* _patternFillBuildHelper(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath);
 
 static inline bool _isGroupType(SvgNodeType type)
 {
@@ -507,6 +508,9 @@ static Paint* _shapeBuildHelper(SvgParserContext& ctx, SvgNode* node, const Box&
 {
     auto shape = Shape::gen();
     if (!_recognizeShape(node, shape)) return nullptr;
+    if (node->style->fill.paint.patternNode && !node->style->fill.paint.gradient) {
+        return _patternFillBuildHelper(ctx, node, shape, vBox, svgPath);
+    }
     return _applyProperty(ctx, node, shape, vBox, svgPath, false);
 }
 
@@ -1006,6 +1010,64 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
     return _applyBlend(p, node);
 }
 
+
+static Paint* _patternFillBuildHelper(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath)
+{
+    auto patternNode = node->style->fill.paint.patternNode;
+    if (!patternNode || patternNode->child.empty()) {
+        TVGLOG("SVG", "Empty <pattern> referenced by fill - falling back to default fill handling.");
+        return _applyProperty(ctx, node, shape, vBox, svgPath, false);
+    }
+
+    auto& pattern = patternNode->node.pattern;
+    auto bbox = _bounds(shape);
+
+    auto scene = Scene::gen();
+    ARRAY_FOREACH(p, patternNode->child) {
+        auto child = *p;
+        Paint* paint = nullptr;
+        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter || child->type == SvgNodeType::Mask) continue;
+        if (_isGroupType(child->type)) {
+            if (child->type == SvgNodeType::Use) paint = _useBuildHelper(ctx, child, vBox, svgPath, 0);
+            else paint = _sceneBuildHelper(ctx, child, vBox, svgPath, false, 0);
+        } else {
+            if (child->type == SvgNodeType::Image) paint = _imageBuildHelper(ctx, child, vBox, svgPath);
+            else if (child->type == SvgNodeType::Text) paint = _textBuildHelper(ctx, child, vBox, svgPath);
+            else paint = _shapeBuildHelper(ctx, child, vBox, svgPath);
+        }
+        if (paint) scene->add(paint);
+    }
+
+    //Position pattern content into the shape's local coordinate space.
+    Matrix mContent = tvg::identity();
+    if (!pattern.contentUserSpace) {
+        mContent = {bbox.w, 0, bbox.x, 0, bbox.h, bbox.y, 0, 0, 1};
+    }
+    if (patternNode->transform) mContent = mContent * *patternNode->transform;
+
+    Matrix sceneTransform = mContent;
+    if (node->transform) sceneTransform = *node->transform * sceneTransform;
+    scene->transform(sceneTransform);
+
+    //Clip the pattern by the shape's path so the fill respects the geometry.
+    const PathCommand* cmds;
+    const Point* pts;
+    uint32_t cmdsCnt, ptsCnt;
+    shape->path(&cmds, &cmdsCnt, &pts, &ptsCnt);
+    auto clip = Shape::gen();
+    if (cmdsCnt > 0) clip->appendPath(cmds, cmdsCnt, pts, ptsCnt);
+    if (node->transform) clip->transform(*node->transform);
+    scene->clip(clip);
+
+    scene->opacity(node->style->opacity);
+    Paint::rel(shape);
+
+    auto p = _applyFilter(ctx, scene, node, vBox, svgPath);
+    p = _applyComposition(ctx, p, node, vBox, svgPath);
+    return _applyBlend(p, node);
+}
+
+
 static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, const Box& vBox, const string& svgPath, bool mask, int depth)
 {
     /* Exception handling: Prevent invalid SVG data input.
@@ -1025,7 +1087,7 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
     ARRAY_FOREACH(p, node->child) {
         auto child = *p;
         Paint* paint = nullptr;
-        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter) continue;
+        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter || child->type == SvgNodeType::Pattern) continue;
         if (_isGroupType(child->type)) {
             if (child->type == SvgNodeType::Use) paint = _useBuildHelper(ctx, child, vBox, svgPath, depth + 1);
             else if (!(child->type == SvgNodeType::Symbol && node->type != SvgNodeType::Use)) paint = _sceneBuildHelper(ctx, child, vBox, svgPath, false, depth + 1);

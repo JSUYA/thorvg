@@ -1361,6 +1361,35 @@ static bool _attrParseFilterNode(void* data, const char* key, const char* value)
 }
 
 
+static bool _attrParsePatternNode(void* data, const char* key, const char* value)
+{
+    auto ctx = (SvgParserContext*)data;
+    auto node = ctx->parser->node;
+    auto pattern = &node->node.pattern;
+
+    _parseBox(key, value, &pattern->box, pattern->isPercentage);
+
+    if (STR_AS(key, "id")) {
+        _copyId(&node->id, value);
+    } else if (STR_AS(key, "patternUnits")) {
+        if (STR_AS(value, "userSpaceOnUse")) pattern->patternUserSpace = true;
+    } else if (STR_AS(key, "patternContentUnits")) {
+        if (STR_AS(value, "objectBoundingBox")) pattern->contentUserSpace = false;
+    } else if (STR_AS(key, "patternTransform")) {
+        node->transform = _parseTransformationMatrix(value);
+    } else if (STR_AS(key, "viewBox")) {
+        if (!_parseNumber(&value, nullptr, &pattern->vx) || !_parseNumber(&value, nullptr, &pattern->vy)) return false;
+        if (!_parseNumber(&value, nullptr, &pattern->vw) || !_parseNumber(&value, nullptr, &pattern->vh)) return false;
+        pattern->hasViewBox = true;
+    } else if (STR_AS(key, "preserveAspectRatio")) {
+        _parseAspectRatio(&value, &pattern->align, &pattern->meetOrSlice);
+    } else if (STR_AS(key, "href") || STR_AS(key, "xlink:href")) {
+        //TODO: pattern href inheritance
+    }
+    return true;
+}
+
+
 static void _parseGaussianBlurStdDeviation(const char** content, float* x, float* y)
 {
     auto str = *content;
@@ -1541,6 +1570,27 @@ static SvgNode* _createFilterNode(SvgParserContext* ctx, SvgNode* parent, const 
     func(buf, bufLength, _attrParseFilterNode, ctx);
 
     if (filter.filterUserSpace) _recalcBox(ctx, &filter.box, filter.isPercentage);
+
+    return ctx->parser->node;
+}
+
+
+static SvgNode* _createPatternNode(SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    ctx->parser->node = _createNode(parent, SvgNodeType::Pattern);
+    if (!ctx->parser->node) return nullptr;
+    SvgPatternNode& pattern = ctx->parser->node->node.pattern;
+
+    ctx->parser->node->style->display = false;
+    pattern.box = {0.0f, 0.0f, 0.0f, 0.0f};
+    pattern.patternUserSpace = false;
+    pattern.contentUserSpace = true;
+    pattern.align = AspectRatioAlign::XMidYMid;
+    pattern.meetOrSlice = AspectRatioMeetOrSlice::Meet;
+
+    func(buf, bufLength, _attrParsePatternNode, ctx);
+
+    if (pattern.patternUserSpace) _recalcBox(ctx, &pattern.box, pattern.isPercentage);
 
     return ctx->parser->node;
 }
@@ -2207,7 +2257,8 @@ static constexpr struct
     {"clipPath", sizeof("clipPath"), _createClipPathNode},
     {"style", sizeof("style"), _createCssStyleNode},
     {"symbol", sizeof("symbol"), _createSymbolNode},
-    {"filter", sizeof("filter"), _createFilterNode}
+    {"filter", sizeof("filter"), _createFilterNode},
+    {"pattern", sizeof("pattern"), _createPatternNode}
 };
 
 
@@ -3689,6 +3740,24 @@ static void _updateFilter(SvgNode* node, SvgNode* root)
     }
 }
 
+
+static void _updatePattern(SvgNode* node, SvgNode* root)
+{
+    auto& fillPaint = node->style->fill.paint;
+    if (fillPaint.url && !fillPaint.gradient && !fillPaint.patternNode) {
+        auto found = _findNodeById(root, fillPaint.url);
+        if (found && found->type == SvgNodeType::Pattern) fillPaint.patternNode = found;
+    }
+    auto& strokePaint = node->style->stroke.paint;
+    if (strokePaint.url && !strokePaint.gradient && !strokePaint.patternNode) {
+        auto found = _findNodeById(root, strokePaint.url);
+        if (found && found->type == SvgNodeType::Pattern) strokePaint.patternNode = found;
+    }
+    ARRAY_FOREACH(child, node->child) {
+        _updatePattern(*child, root);
+    }
+}
+
 static bool _svgLoaderParserForValidCheckXmlOpen(SvgParserContext* ctx, const char* content, unsigned int length)
 {
     const char* attrs = nullptr;
@@ -3786,6 +3855,9 @@ void SvgLoader::run(unsigned tid)
 
                 if (ctx.gradients.count > 0) _updateGradient(&ctx, ctx.doc, &ctx.gradients);
                 if (defs) _updateGradient(&ctx, ctx.doc, &defs->node.defs.gradients);
+
+                _updatePattern(ctx.doc, ctx.doc);
+                if (defs) _updatePattern(ctx.doc, defs);
 
                 root = svgSceneBuild(ctx, vbox, w, h, align, meetOrSlice, svgPath, viewFlag);
 
