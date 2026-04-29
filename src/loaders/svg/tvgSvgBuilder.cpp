@@ -40,7 +40,7 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
 
 static inline bool _isGroupType(SvgNodeType type)
 {
-    if (type == SvgNodeType::Doc || type == SvgNodeType::G || type == SvgNodeType::Use || type == SvgNodeType::ClipPath || type == SvgNodeType::Symbol || type == SvgNodeType::Filter) return true;
+    if (type == SvgNodeType::Doc || type == SvgNodeType::G || type == SvgNodeType::Use || type == SvgNodeType::ClipPath || type == SvgNodeType::Symbol || type == SvgNodeType::Filter || type == SvgNodeType::Pattern) return true;
     return false;
 }
 
@@ -317,6 +317,42 @@ static Paint* _applyComposition(SvgParserContext& ctx, Paint* paint, const SvgNo
     return scene;
 }
 
+static SvgNode* _findPatternById(SvgNode* node, const char* id)
+{
+    if (!node || !id) return nullptr;
+    if (node->type == SvgNodeType::Pattern && node->id && STR_AS(node->id, id)) return node;
+
+    if (node->type == SvgNodeType::Doc) {
+        if (auto pattern = _findPatternById(node->node.doc.defs, id)) return pattern;
+    }
+
+    ARRAY_FOREACH(p, node->child) {
+        if (auto pattern = _findPatternById(*p, id)) return pattern;
+    }
+    return nullptr;
+}
+
+
+static Scene* _applyPatternProperty(SvgParserContext& ctx, SvgNode* pattern, Shape* vg, const Box& vBox, const string& svgPath, int opacity)
+{
+    auto& pt = pattern->node.pattern;
+    if (pt.box.w <= 0.0f || pt.box.h <= 0.0f) return nullptr;
+    if (!pt.userSpace || !pt.contentUserSpace) return nullptr;
+
+    auto scene = _sceneBuildHelper(ctx, pattern, vBox, svgPath, false, 0);
+    if (!scene) return nullptr;
+
+    auto clipper = static_cast<Shape*>(vg->duplicate());
+    if (!clipper) {
+        Paint::rel(scene);
+        return nullptr;
+    }
+    scene->clip(clipper);
+    scene->opacity(opacity);
+    return scene;
+}
+
+
 static Paint* _applyFilter(SvgParserContext& ctx, Paint* paint, const SvgNode* node, const Box& vBox, const string& svgPath)
 {
     auto filterNode = node->style->filter.node;
@@ -378,6 +414,7 @@ static Paint* _applyFilter(SvgParserContext& ctx, Paint* paint, const SvgNode* n
 static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, const Box& vBox, const string& svgPath, bool clip)
 {
     SvgStyleProperty* style = node->style;
+    auto patternFill = static_cast<Scene*>(nullptr);
 
     //Clip transformation is applied directly to the path in the _appendClipShape function
     if (node->type == SvgNodeType::Doc || !node->style->display) return vg;
@@ -393,7 +430,13 @@ static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, co
             vg->fill(_applyRadialGradientProperty(style->fill.paint.gradient, bBox, style->fill.opacity));
         }
     } else if (style->fill.paint.url) {
-        TVGLOG("SVG", "The fill's url not supported.");
+        if (auto pattern = _findPatternById(ctx.doc, style->fill.paint.url)) {
+            patternFill = _applyPatternProperty(ctx, pattern, vg, vBox, svgPath, style->fill.opacity);
+            if (patternFill) vg->fill(0, 0, 0, 0);
+            else TVGLOG("SVG", "The fill's pattern not supported.");
+        } else {
+            TVGLOG("SVG", "The fill's url not supported.");
+        }
     } else if (style->fill.paint.curColor) {
         //Apply the current style color
         vg->fill(style->color.r, style->color.g, style->color.b, style->fill.opacity);
@@ -404,9 +447,9 @@ static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, co
 
     vg->fillRule(style->fill.fillRule);
     vg->order(!style->paintOrder);
-    vg->opacity(style->opacity);
 
     if (node->type == SvgNodeType::G || node->type == SvgNodeType::Use) {
+        vg->opacity(style->opacity);
         if (style->flags & SvgStyleFlags::BlendMode) vg->blend(style->blendMode);
         return vg;
     }
@@ -439,10 +482,26 @@ static Paint* _applyProperty(SvgParserContext& ctx, SvgNode* node, Shape* vg, co
         vg->strokeFill(style->stroke.paint.color.r, style->stroke.paint.color.g, style->stroke.paint.color.b, style->stroke.opacity);
     }
 
-    //apply transform after the local space shape bbox for gradient acquisition
-    if (node->transform && !clip) vg->transform(*node->transform);
+    auto paint = static_cast<Paint*>(vg);
+    if (patternFill) {
+        auto scene = Scene::gen();
+        if (style->paintOrder) {
+            scene->add(patternFill);
+            scene->add(vg);
+        } else {
+            scene->add(vg);
+            scene->add(patternFill);
+        }
+        scene->opacity(style->opacity);
+        paint = scene;
+    } else {
+        vg->opacity(style->opacity);
+    }
 
-    auto p = _applyFilter(ctx, vg, node, vBox, svgPath);
+    //apply transform after the local space shape bbox for gradient acquisition
+    if (node->transform && !clip) paint->transform(*node->transform);
+
+    auto p = _applyFilter(ctx, paint, node, vBox, svgPath);
     p = _applyComposition(ctx, p, node, vBox, svgPath);
     return _applyBlend(p, node);
 }
@@ -1025,7 +1084,7 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
     ARRAY_FOREACH(p, node->child) {
         auto child = *p;
         Paint* paint = nullptr;
-        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter) continue;
+        if (child->type == SvgNodeType::ClipPath || child->type == SvgNodeType::Filter || child->type == SvgNodeType::Pattern) continue;
         if (_isGroupType(child->type)) {
             if (child->type == SvgNodeType::Use) paint = _useBuildHelper(ctx, child, vBox, svgPath, depth + 1);
             else if (!(child->type == SvgNodeType::Symbol && node->type != SvgNodeType::Use)) paint = _sceneBuildHelper(ctx, child, vBox, svgPath, false, depth + 1);

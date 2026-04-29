@@ -1342,6 +1342,52 @@ static void _recalcBox(const SvgParserContext* ctx, Box* box, bool (&isPercentag
 }
 
 
+static SvgNode* _createNode(SvgNode* parent, SvgNodeType type);
+
+
+static bool _attrParsePatternNode(void* data, const char* key, const char* value)
+{
+    auto ctx = (SvgParserContext*)data;
+    auto node = ctx->parser->node;
+    auto pattern = &node->node.pattern;
+
+    if (_parseBox(key, value, &pattern->box, pattern->isPercentage)) return true;
+
+    if (STR_AS(key, "id")) {
+        _copyId(&node->id, value);
+    } else if (STR_AS(key, "style")) {
+        return xmlParseW3CAttribute(value, strlen(value), _parseStyleAttr, ctx);
+    } else if (STR_AS(key, "patternTransform")) {
+        tvg::free(node->transform);
+        node->transform = _parseTransformationMatrix(value);
+    } else if (STR_AS(key, "patternUnits")) {
+        if (STR_AS(value, "userSpaceOnUse")) pattern->userSpace = true;
+    } else if (STR_AS(key, "patternContentUnits")) {
+        if (STR_AS(value, "objectBoundingBox")) pattern->contentUserSpace = false;
+    } else if (STR_AS(key, "overflow")) {
+        if (STR_AS(value, "visible")) pattern->overflowVisible = true;
+    } else if (STR_AS(key, "class")) {
+        _handleCssClassAttr(ctx, node, value);
+    } else {
+        return _parseStyleAttr(ctx, key, value, false);
+    }
+    return true;
+}
+
+
+static SvgNode* _createPatternNode(SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    ctx->parser->node = _createNode(parent, SvgNodeType::Pattern);
+    auto pattern = &ctx->parser->node->node.pattern;
+    pattern->contentUserSpace = true;
+
+    func(buf, bufLength, _attrParsePatternNode, ctx);
+
+    if (pattern->userSpace) _recalcBox(ctx, &pattern->box, pattern->isPercentage);
+    return ctx->parser->node;
+}
+
+
 static bool _attrParseFilterNode(void* data, const char* key, const char* value)
 {
     auto ctx = (SvgParserContext*)data;
@@ -2209,6 +2255,7 @@ static constexpr struct
     {"clipPath", sizeof("clipPath"), _createClipPathNode},
     {"style", sizeof("style"), _createCssStyleNode},
     {"symbol", sizeof("symbol"), _createSymbolNode},
+    {"pattern", sizeof("pattern"), _createPatternNode},
     {"filter", sizeof("filter"), _createFilterNode}
 };
 
