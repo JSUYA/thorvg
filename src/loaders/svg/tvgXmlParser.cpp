@@ -241,6 +241,7 @@ const char* xmlNodeTypeToString(TVG_UNUSED SvgNodeType type)
         "Symbol",
         "Filter",
         "GaussianBlur",
+        "Pattern",
         "Unknown",
     };
     return TYPE_NAMES[(int) type];
