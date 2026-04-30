@@ -237,6 +237,7 @@ const char* xmlNodeTypeToString(TVG_UNUSED SvgNodeType type)
         "Video",
         "ClipPath",
         "Mask",
+        "CssStyle",
         "Symbol",
         "Filter",
         "GaussianBlur",
