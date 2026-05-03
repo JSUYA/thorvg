@@ -355,7 +355,11 @@ static bool _axisAlignedRect(const SwOutline* outline)
     auto a = SwPoint{pt1->x, pt3->y};
     auto b = SwPoint{pt3->x, pt1->y};
 
-    if ((*pt2 == a && *pt4 == b) || (*pt2 == b && *pt4 == a)) return true;
+    if ((*pt2 == a && *pt4 == b) || (*pt2 == b && *pt4 == a)) {
+        //Fast track skips AA, so reject sub-pixel aligned edges to keep edge AA consistent with stroke.
+        if ((pt1->x | pt1->y | pt3->x | pt3->y) & 63) return false;
+        return true;
+    }
 
     return false;
 }
