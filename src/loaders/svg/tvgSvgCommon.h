@@ -84,6 +84,7 @@ enum struct SvgNodeType : uint16_t
     Symbol,
     Filter,
     GaussianBlur,
+    Pattern,
     Unknown
 };
 
@@ -417,6 +418,16 @@ struct SvgFilterNode
     bool primitiveUserSpace;
 };
 
+struct SvgPatternNode
+{
+    Box box;
+    bool isPercentage[4];
+    bool userSpace;
+    bool contentUserSpace;
+    bool overflowVisible;
+    bool applying;
+};
+
 struct SvgLinearGradient
 {
     float x1, y1, x2, y2;
@@ -558,6 +569,7 @@ struct SvgNode
         SvgTextNode text;
         SvgFilterNode filter;
         SvgGaussianBlurNode gaussianBlur;
+        SvgPatternNode pattern;
     } node;
     SvgXmlSpace xmlSpace = SvgXmlSpace::None;
     ~SvgNode();

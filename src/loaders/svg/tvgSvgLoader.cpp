@@ -1546,6 +1546,46 @@ static SvgNode* _createFilterNode(SvgParserContext* ctx, SvgNode* parent, const 
 }
 
 
+static bool _attrParsePatternNode(void* data, const char* key, const char* value)
+{
+    auto ctx = (SvgParserContext*)data;
+    auto node = ctx->parser->node;
+    auto pattern = &node->node.pattern;
+
+    if (_parseBox(key, value, &pattern->box, pattern->isPercentage)) return true;
+
+    if (STR_AS(key, "id")) _copyId(&node->id, value);
+    else if (STR_AS(key, "patternTransform")) {
+        tvg::free(node->transform);
+        node->transform = _parseTransformationMatrix(value);
+    } else if (STR_AS(key, "patternUnits")) {
+        if (STR_AS(value, "userSpaceOnUse")) pattern->userSpace = true;
+    } else if (STR_AS(key, "patternContentUnits")) {
+        if (STR_AS(value, "objectBoundingBox")) pattern->contentUserSpace = false;
+    } else if (STR_AS(key, "overflow")) {
+        if (STR_AS(value, "hidden") || STR_AS(value, "scroll")) pattern->overflowVisible = false;
+    } else return _attrParseGNode(data, key, value);
+
+    return true;
+}
+
+
+static SvgNode* _createPatternNode(SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    ctx->parser->node = _createNode(parent, SvgNodeType::Pattern);
+    if (!ctx->parser->node) return nullptr;
+
+    auto pattern = &ctx->parser->node->node.pattern;
+    pattern->contentUserSpace = true;
+    pattern->overflowVisible = true;
+
+    func(buf, bufLength, _attrParsePatternNode, ctx);
+
+    if (pattern->userSpace) _recalcBox(ctx, &pattern->box, pattern->isPercentage);
+    return ctx->parser->node;
+}
+
+
 static bool _attrParsePathNode(void* data, const char* key, const char* value)
 {
     auto ctx = (SvgParserContext*)data;
@@ -2209,7 +2249,8 @@ static constexpr struct
     {"clipPath", sizeof("clipPath"), _createClipPathNode},
     {"style", sizeof("style"), _createCssStyleNode},
     {"symbol", sizeof("symbol"), _createSymbolNode},
-    {"filter", sizeof("filter"), _createFilterNode}
+    {"filter", sizeof("filter"), _createFilterNode},
+    {"pattern", sizeof("pattern"), _createPatternNode}
 };
 
 
