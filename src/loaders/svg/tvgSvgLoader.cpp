@@ -1365,7 +1365,7 @@ static bool _attrParsePatternNode(void* data, const char* key, const char* value
     } else if (STR_AS(key, "patternContentUnits")) {
         if (STR_AS(value, "objectBoundingBox")) pattern->contentUserSpace = false;
     } else if (STR_AS(key, "overflow")) {
-        if (STR_AS(value, "visible")) pattern->overflowVisible = true;
+        if (STR_AS(value, "hidden") || STR_AS(value, "scroll")) pattern->overflowVisible = false;
     } else if (STR_AS(key, "class")) {
         _handleCssClassAttr(ctx, node, value);
     } else {
@@ -1380,6 +1380,7 @@ static SvgNode* _createPatternNode(SvgParserContext* ctx, SvgNode* parent, const
     ctx->parser->node = _createNode(parent, SvgNodeType::Pattern);
     auto pattern = &ctx->parser->node->node.pattern;
     pattern->contentUserSpace = true;
+    pattern->overflowVisible = true;
 
     func(buf, bufLength, _attrParsePatternNode, ctx);
 

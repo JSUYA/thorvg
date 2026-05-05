@@ -395,6 +395,7 @@ struct SvgPatternNode
     bool userSpace;
     bool contentUserSpace;
     bool overflowVisible;
+    bool applying;
 };
 
 struct SvgCssStyleNode

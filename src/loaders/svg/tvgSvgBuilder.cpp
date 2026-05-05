@@ -338,16 +338,51 @@ static Scene* _applyPatternProperty(SvgParserContext& ctx, SvgNode* pattern, Sha
     auto& pt = pattern->node.pattern;
     if (pt.box.w <= 0.0f || pt.box.h <= 0.0f) return nullptr;
     if (!pt.userSpace || !pt.contentUserSpace) return nullptr;
-
-    auto scene = _sceneBuildHelper(ctx, pattern, vBox, svgPath, false, 0);
-    if (!scene) return nullptr;
-
-    auto clipper = static_cast<Shape*>(vg->duplicate());
-    if (!clipper) {
-        Paint::rel(scene);
+    if (pt.applying) {
+        TVGLOG("SVG", "Pattern circular reference detected.");
         return nullptr;
     }
-    scene->clip(clipper);
+
+    pt.applying = true;
+    auto base = _sceneBuildHelper(ctx, pattern, vBox, svgPath, false, 0);
+    pt.applying = false;
+    if (!base) return nullptr;
+
+    auto bbox = _bounds(vg);
+    auto baseBbox = _bounds(base);
+
+    int iMin = (int)floorf((bbox.x - baseBbox.x - baseBbox.w) / pt.box.w);
+    int iMax = (int)ceilf((bbox.x + bbox.w - baseBbox.x) / pt.box.w);
+    int jMin = (int)floorf((bbox.y - baseBbox.y - baseBbox.h) / pt.box.h);
+    int jMax = (int)ceilf((bbox.y + bbox.h - baseBbox.y) / pt.box.h);
+    if (iMax <= iMin) iMax = iMin + 1;
+    if (jMax <= jMin) jMax = jMin + 1;
+
+    constexpr int MAX_TILES = 1024;
+    if ((int64_t)(iMax - iMin) * (int64_t)(jMax - jMin) > MAX_TILES) {
+        iMin = jMin = 0;
+        iMax = jMax = 1;
+    }
+
+    Matrix baseTransform = base->transform();
+    auto scene = Scene::gen();
+
+    for (int j = jMin; j < jMax; ++j) {
+        for (int i = iMin; i < iMax; ++i) {
+            auto t = (i + 1 == iMax && j + 1 == jMax) ? (Paint*)base : base->duplicate();
+            Matrix shift = {1, 0, i * pt.box.w, 0, 1, j * pt.box.h, 0, 0, 1};
+            t->transform(baseTransform * shift);
+            if (!pt.overflowVisible) {
+                auto tileClip = Shape::gen();
+                _appendRect(tileClip, pt.box.x + i * pt.box.w, pt.box.y + j * pt.box.h, pt.box.w, pt.box.h, 0.0f, 0.0f);
+                if (pattern->transform) tileClip->transform(*pattern->transform);
+                t->clip(tileClip);
+            }
+            scene->add(t);
+        }
+    }
+
+    if (auto clipper = static_cast<Shape*>(vg->duplicate())) scene->clip(clipper);
     scene->opacity(opacity);
     return scene;
 }
