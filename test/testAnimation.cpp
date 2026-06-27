@@ -187,3 +187,84 @@ TEST_CASE("Lottie Segment", "[tvgAnimation]")
 }
 
 #endif
+
+#ifdef THORVG_SVG_LOADER_SUPPORT
+
+TEST_CASE("SVG Static Is Not Animatable", "[tvgAnimation]")
+{
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        auto animation = unique_ptr<Animation>(Animation::gen());
+        REQUIRE(animation);
+
+        auto picture = animation->picture();
+
+        const char* svg = "<svg width='100' height='100' viewBox='0 0 100 100'>"
+                          "<circle cx='50' cy='50' r='20' fill='#ff0000'/></svg>";
+        REQUIRE(picture->load(svg, strlen(svg), "svg", nullptr, true) == Result::Success);
+
+        //A plain SVG carries no SMIL timeline.
+        REQUIRE(animation->totalFrame() == 0.0f);
+        REQUIRE(animation->duration() == 0.0f);
+        REQUIRE(animation->frame(1.0f) == Result::NonSupport);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
+TEST_CASE("SVG SMIL Animation", "[tvgAnimation]")
+{
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        auto animation = unique_ptr<Animation>(Animation::gen());
+        REQUIRE(animation);
+
+        auto picture = animation->picture();
+
+        const char* svg = "<svg width='100' height='100' viewBox='0 0 100 100'>"
+                          "<circle cx='50' cy='50' r='10' fill='#ff0000'>"
+                          "<animate attributeName='r' from='10' to='40' dur='2s' repeatCount='indefinite'/>"
+                          "</circle></svg>";
+        REQUIRE(picture->load(svg, strlen(svg), "svg", nullptr, true) == Result::Success);
+
+        //SMIL produces a time-based timeline (30 fps internal rate * 2s = 60 frames).
+        REQUIRE(animation->duration() == Approx(2.0f).margin(0.01f));
+        REQUIRE(animation->totalFrame() == Approx(60.0f).margin(0.01f));
+
+        //Frame control
+        REQUIRE(animation->frame(0.0f) == Result::InsufficientCondition);  //already at 0
+        REQUIRE(animation->frame(30.0f) == Result::Success);
+        REQUIRE(animation->curFrame() == Approx(30.0f).margin(0.01f));
+
+        //Segment
+        float begin = 0.0f, end = 0.0f;
+        REQUIRE(animation->segment(&begin, &end) == Result::Success);
+        REQUIRE(begin == 0.0f);
+        REQUIRE(end == Approx(animation->totalFrame()).margin(0.01f));
+        REQUIRE(animation->segment(0.0f, 30.0f) == Result::Success);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
+TEST_CASE("SVG SMIL animateTransform", "[tvgAnimation]")
+{
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        auto animation = unique_ptr<Animation>(Animation::gen());
+        REQUIRE(animation);
+
+        auto picture = animation->picture();
+
+        const char* svg = "<svg width='100' height='100' viewBox='0 0 100 100'>"
+                          "<rect x='40' y='10' width='20' height='20' fill='#ff0000'>"
+                          "<animateTransform attributeName='transform' type='rotate' "
+                          "from='0 50 50' to='90 50 50' dur='1s' fill='freeze'/>"
+                          "</rect></svg>";
+        REQUIRE(picture->load(svg, strlen(svg), "svg", nullptr, true) == Result::Success);
+
+        REQUIRE(animation->totalFrame() == Approx(30.0f).margin(0.01f));
+        REQUIRE(animation->frame(15.0f) == Result::Success);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
+#endif

@@ -27,4 +27,7 @@
 
 Scene* svgSceneBuild(SvgParserContext& ctx, Box vBox, float w, float h, AspectRatioAlign align, AspectRatioMeetOrSlice meetOrSlice, const string& svgPath, SvgViewFlag viewFlag);
 
+//Regenerate a shape's path in place from its node geometry (for SMIL animation updates).
+bool svgShapeReset(SvgNode* node, Paint* paint);
+
 #endif //_TVG_SVG_SCENE_BUILDER_H_

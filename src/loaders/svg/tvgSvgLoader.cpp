@@ -29,6 +29,7 @@
 #include "tvgSvgBuilder.h"
 #include "tvgSvgCssStyle.h"
 #include "tvgSvgUtil.h"
+#include "tvgSvgAnimation.h"
 
 /************************************************************************/
 /* Internal Class Implementation                                        */
@@ -3227,6 +3228,188 @@ static void _svgLoaderParserXmlClose(SvgParserContext* ctx, const char* content,
     }
 }
 
+/************************************************************************/
+/* SMIL animation parsing                                               */
+/************************************************************************/
+
+//Parse a SMIL clock value ("2s", "500ms", "1.5", "indefinite") into seconds.
+static float _smilClock(const char* str)
+{
+    if (!str) return 0.0f;
+    while (*str == ' ' || *str == '\t') ++str;
+    if (!strncmp(str, "indefinite", 10)) return INFINITY;
+
+    char* end = nullptr;
+    auto v = toFloat(str, &end);
+    if (end == str) return 0.0f;
+    while (*end == ' ') ++end;
+    if (!strncmp(end, "ms", 2)) return v * 0.001f;
+    if (*end == 's') return v;
+    if (*end == 'm' && end[1] != 's') return v * 60.0f;   //minutes
+    if (*end == 'h') return v * 3600.0f;
+    return v;  //bare value is seconds
+}
+
+
+//Split a semicolon-separated list into trimmed, duplicated strings.
+static void _splitList(const char* str, Array<char*>& out)
+{
+    if (!str) return;
+    const char* p = str;
+    while (*p) {
+        while (*p == ' ' || *p == '\t' || *p == ';') ++p;
+        if (!*p) break;
+        auto start = p;
+        while (*p && *p != ';') ++p;
+        auto endp = p;
+        while (endp > start && (endp[-1] == ' ' || endp[-1] == '\t')) --endp;
+        if (endp > start) out.push(duplicate(start, endp - start));
+    }
+}
+
+
+static void _splitFloats(const char* str, Array<float>& out)
+{
+    if (!str) return;
+    const char* p = str;
+    while (p && *p) {
+        while (*p == ' ' || *p == '\t' || *p == ';' || *p == ',') ++p;
+        if (!*p) break;
+        char* end = nullptr;
+        auto v = toFloat(p, &end);
+        if (end == p) break;
+        out.push(v);
+        p = end;
+    }
+}
+
+
+struct SmilParse
+{
+    SvgSmilAnim* anim;
+    char* from = nullptr;
+    char* to = nullptr;
+    char* by = nullptr;
+};
+
+
+static bool _attrParseAnimate(void* data, const char* key, const char* value)
+{
+    auto parse = static_cast<SmilParse*>(data);
+    auto anim = parse->anim;
+
+    if (STR_AS(key, "attributeName")) anim->attributeName = duplicate(value);
+    else if (STR_AS(key, "id")) anim->id = duplicate(value);
+    else if (STR_AS(key, "from")) parse->from = duplicate(value);
+    else if (STR_AS(key, "to")) parse->to = duplicate(value);
+    else if (STR_AS(key, "by")) parse->by = duplicate(value);
+    else if (STR_AS(key, "values")) _splitList(value, anim->values);
+    else if (STR_AS(key, "keyTimes")) _splitFloats(value, anim->keyTimes);
+    else if (STR_AS(key, "keySplines")) _splitFloats(value, anim->keySplines);
+    else if (STR_AS(key, "begin")) anim->beginRaw = duplicate(value);   //resolved at load (lists/syncbase)
+    else if (STR_AS(key, "dur")) { auto d = _smilClock(value); anim->dur = std::isinf(d) ? 0.0f : d; }
+    else if (STR_AS(key, "repeatCount")) {
+        if (!strncmp(value, "indefinite", 10)) anim->repeatCount = INFINITY;
+        else anim->repeatCount = toFloat(value, nullptr);
+    } else if (STR_AS(key, "fill")) {
+        anim->fill = STR_AS(value, "freeze") ? SvgAnimFill::Freeze : SvgAnimFill::Remove;
+    } else if (STR_AS(key, "calcMode")) {
+        if (STR_AS(value, "discrete")) anim->calcMode = SvgAnimCalcMode::Discrete;
+        else if (STR_AS(value, "paced")) anim->calcMode = SvgAnimCalcMode::Paced;
+        else if (STR_AS(value, "spline")) anim->calcMode = SvgAnimCalcMode::Spline;
+        else anim->calcMode = SvgAnimCalcMode::Linear;
+    } else if (STR_AS(key, "additive")) {
+        anim->additive = STR_AS(value, "sum") ? SvgAnimAdditive::Sum : SvgAnimAdditive::Replace;
+    } else if (STR_AS(key, "accumulate")) {
+        anim->accumulate = STR_AS(value, "sum");
+    } else if (STR_AS(key, "type")) {
+        if (STR_AS(value, "translate")) anim->transform = SvgAnimTransform::Translate;
+        else if (STR_AS(value, "scale")) anim->transform = SvgAnimTransform::Scale;
+        else if (STR_AS(value, "rotate")) anim->transform = SvgAnimTransform::Rotate;
+        else if (STR_AS(value, "skewX")) anim->transform = SvgAnimTransform::SkewX;
+        else if (STR_AS(value, "skewY")) anim->transform = SvgAnimTransform::SkewY;
+    }
+    return true;
+}
+
+
+static void _createAnimateNode(SvgParserContext* ctx, SvgAnimType type, const char* buf, unsigned bufLength)
+{
+    //resolve the animation target (current graphics element, or the enclosing group)
+    SvgNode* target = ctx->currentGraphicsNode;
+    if (!target && ctx->stack.count > 0) target = ctx->stack.last();
+    if (!target) return;
+
+    auto anim = new SvgSmilAnim;
+    anim->type = type;
+    if (type == SvgAnimType::Set) anim->calcMode = SvgAnimCalcMode::Discrete;
+    if (type == SvgAnimType::AnimateTransform) anim->additive = SvgAnimAdditive::Replace;
+    anim->target = target;
+
+    SmilParse parse{anim};
+    xmlParseAttributes(buf, bufLength, _attrParseAnimate, &parse);
+
+    //Build the keyframe values from from/to/by when an explicit list is absent.
+    if (anim->values.count == 0) {
+        if (type == SvgAnimType::Set && parse.to) {
+            anim->values.push(duplicate(parse.to));
+        } else if (parse.from && parse.to) {
+            anim->values.push(duplicate(parse.from));
+            anim->values.push(duplicate(parse.to));
+        } else if (parse.from && parse.by) {
+            anim->values.push(duplicate(parse.from));
+            anim->values.push(duplicate(parse.by));
+            anim->additive = SvgAnimAdditive::Sum;  //by is relative to the base
+        } else if (parse.to) {
+            anim->values.push(duplicate(parse.to));   //constant (approximation of base->to)
+        } else if (parse.by) {
+            anim->values.push(duplicate("0"));
+            anim->values.push(duplicate(parse.by));
+            anim->additive = SvgAnimAdditive::Sum;
+        }
+    }
+
+    tvg::free(parse.from);
+    tvg::free(parse.to);
+    tvg::free(parse.by);
+
+    //begin (lists & syncbase references) is resolved later in svgAnimationResolve().
+    if (!svgAnimationSupported(anim) || anim->values.count == 0) {
+        delete(anim);
+        return;
+    }
+
+    ctx->animations.push(anim);
+}
+
+
+static constexpr struct
+{
+    const char* tag;
+    int sz;
+    SvgAnimType type;
+} animateTags[] = {
+    {"animate", sizeof("animate"), SvgAnimType::Animate},
+    {"set", sizeof("set"), SvgAnimType::Set},
+    {"animateTransform", sizeof("animateTransform"), SvgAnimType::AnimateTransform},
+    {"animateColor", sizeof("animateColor"), SvgAnimType::Animate},
+    {"animateMotion", sizeof("animateMotion"), SvgAnimType::AnimateMotion}
+};
+
+
+static bool _findAnimateFactory(const char* name, SvgAnimType& type)
+{
+    auto sz = strlen(name);
+    for (unsigned i = 0; i < sizeof(animateTags) / sizeof(animateTags[0]); ++i) {
+        if (animateTags[i].sz - 1 == (int)sz && !strncmp(animateTags[i].tag, name, sz)) {
+            type = animateTags[i].type;
+            return true;
+        }
+    }
+    return false;
+}
+
+
 static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, unsigned int length, bool empty)
 {
     const char* attrs = nullptr;
@@ -3235,6 +3418,7 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
     char tagName[20] = "";
     FactoryMethod method;
     GradientFactoryMethod gradientMethod;
+    SvgAnimType animType;
     SvgNode *node = nullptr, *parent = nullptr;
     attrs = xmlFindAttributesTag(content, length);
 
@@ -3344,6 +3528,9 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
             }
         }
         if (!empty) ctx->gradientStack.push(gradient);
+    } else if (_findAnimateFactory(tagName, animType)) {
+        //SMIL animation element - attached to the current target, never pushed on the stack.
+        _createAnimateNode(ctx, animType, attrs, attrsLength);
     } else {
         if (!isIgnoreUnsupportedLogElements(tagName)) TVGLOG("SVG", "Unsupported elements used [Elements: %s]", tagName);
     }
@@ -3815,7 +4002,19 @@ void SvgLoader::run(unsigned tid)
                 if (ctx.gradients.count > 0) _updateGradient(&ctx, ctx.doc, &ctx.gradients);
                 if (defs) _updateGradient(&ctx, ctx.doc, &defs->node.defs.gradients);
 
+                //SMIL animations detected: enable animation mode.
+                if (ctx.animations.count > 0) {
+                    animated = true;
+                    durationSec = svgAnimationResolve(ctx.animations);
+                    //NB: compute the frame count directly - calling totalFrame() here would
+                    //invoke done() and deadlock on this very task while it is still running.
+                    segmentEnd = durationSec * fps;
+                }
+
                 root = svgSceneBuild(ctx, vbox, w, h, align, meetOrSlice, svgPath, viewFlag);
+
+                //Seed the initial frame in place (the paints now exist and carry node->paint).
+                if (animated) svgAnimationApply(ctx.animations, frameNo / fps);
 
                 //In case no viewbox and width/height data is provided the completion of loading
                 //has to be forced, in order to establish this data based on the whole picture.
@@ -3829,7 +4028,8 @@ void SvgLoader::run(unsigned tid)
         }
     }
     if (root) root->ref();
-    clear(false);
+    //Animated SVGs must retain the parsed node tree and paints for in-place per-frame updates.
+    if (!animated) clear(false);
 }
 
 
@@ -3866,9 +4066,13 @@ void SvgParserContext::clear(bool all)
     ARRAY_FOREACH(a, access) {
         tvg::free(a->name);
     }
+    ARRAY_FOREACH(p, animations) {
+        delete(*p);
+    }
+    animations.reset();
 }
 
-SvgLoader::SvgLoader() : ImageLoader(FileType::Svg)
+SvgLoader::SvgLoader() : AnimLoader(FileType::Svg)
 {
 }
 
@@ -4019,11 +4223,65 @@ Paint* SvgLoader::paint()
 {
     this->done();
     if (root) {
+        //Animated SVGs must hand out the stable scene (its content is swapped per frame).
+        if (animated) return root;
         //Primary usage: sharing the svg
         if (root->refCnt() == 1) return root;
         return root->duplicate();
     }
     return nullptr;
+}
+
+
+bool SvgLoader::frame(float no)
+{
+    if (!animated) return false;
+
+    this->done();
+
+    //Skip negligible changes (mirrors the Lottie loader behavior).
+    if (fabsf(this->frameNo - no) <= 0.0009f) return false;
+
+    this->frameNo = no;
+
+    //Apply the SMIL state for the requested time. Updates are pushed onto the existing
+    //paints in place (no scene rebuild), mirroring the Lottie loader's approach.
+    svgAnimationApply(ctx.animations, no / fps);
+
+    return true;
+}
+
+
+float SvgLoader::totalFrame()
+{
+    this->done();
+    if (!animated) return 0.0f;
+    return durationSec * fps;
+}
+
+
+float SvgLoader::curFrame()
+{
+    return frameNo;
+}
+
+
+float SvgLoader::duration()
+{
+    this->done();
+    if (!animated) return 0.0f;
+    return durationSec;
+}
+
+
+Result SvgLoader::segment(float begin, float end)
+{
+    this->done();
+    if (!animated) return Result::NonSupport;
+    if (begin < 0.0f || end > totalFrame() || begin > end) return Result::InvalidArguments;
+    segmentBegin = begin;
+    segmentEnd = end;
+    return Result::Success;
 }
 
 const AccessorEntity* SvgLoader::access(uint32_t id)

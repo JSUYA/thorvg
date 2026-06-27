@@ -1,4 +1,5 @@
 source_file = [
+   'tvgSvgAnimation.h',
    'tvgSvgBuilder.h',
    'tvgSvgCommon.h',
    'tvgSvgCssStyle.h',
@@ -6,6 +7,7 @@ source_file = [
    'tvgSvgPath.h',
    'tvgSvgUtil.h',
    'tvgXmlParser.h',
+   'tvgSvgAnimation.cpp',
    'tvgSvgBuilder.cpp',
    'tvgSvgCssStyle.cpp',
    'tvgSvgLoader.cpp',

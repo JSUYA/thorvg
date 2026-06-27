@@ -514,7 +514,18 @@ static Paint* _shapeBuildHelper(SvgParserContext& ctx, SvgNode* node, const Box&
 {
     auto shape = Shape::gen();
     if (!_recognizeShape(node, shape)) return nullptr;
+    node->paint = shape;   //record for in-place SMIL animation updates
     return _applyProperty(ctx, node, shape, vBox, svgPath, false);
+}
+
+
+//Re-sync a shape's path from its (possibly animation-mutated) node geometry, in place.
+bool svgShapeReset(SvgNode* node, Paint* paint)
+{
+    if (!paint) return false;
+    auto shape = static_cast<Shape*>(paint);
+    shape->reset();
+    return _recognizeShape(node, shape);
 }
 
 static bool _appendClipShape(SvgParserContext& ctx, SvgNode* node, Shape* shape, const Box& vBox, const string& svgPath, const Matrix* transform)
@@ -1044,6 +1055,7 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
     if (!_isGroupType(node->type) && !mask) return nullptr;
 
     auto scene = Scene::gen();
+    if (!mask) const_cast<SvgNode*>(node)->paint = scene;   //record for in-place SMIL animation updates
     // For a Symbol node, the viewBox transformation has to be applied first - see _useBuildHelper()
     if (!mask && node->transform && node->type != SvgNodeType::Symbol && node->type != SvgNodeType::Use) scene->transform(*node->transform);
     if (!node->style->display || node->style->opacity == 0) return scene;

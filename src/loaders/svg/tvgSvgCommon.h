@@ -562,6 +562,8 @@ struct SvgNode
         SvgGaussianBlurNode gaussianBlur;
     } node;
     SvgXmlSpace xmlSpace = SvgXmlSpace::None;
+    Paint* paint = nullptr;   //rendered paint for this node (set at build time; used for in-place animation updates)
+    uint32_t xfStamp = 0;     //frame stamp: lets multiple animateTransforms compose on one node per frame
     ~SvgNode();
 };
 
@@ -602,6 +604,106 @@ enum struct OpenedTagType : uint8_t
     Text
 };
 
+//SVG SMIL animation (https://www.w3.org/TR/SVG11/animate.html)
+enum struct SvgAnimType : uint8_t
+{
+    Animate = 0,        //<animate>, <animateColor>
+    Set,                //<set>
+    AnimateTransform,   //<animateTransform>
+    AnimateMotion       //<animateMotion>
+};
+
+enum struct SvgAnimCalcMode : uint8_t
+{
+    Linear = 0,
+    Discrete,
+    Paced,
+    Spline
+};
+
+enum struct SvgAnimFill : uint8_t
+{
+    Remove = 0,         //revert to the base value when the animation ends
+    Freeze              //keep the last value
+};
+
+enum struct SvgAnimAdditive : uint8_t
+{
+    Replace = 0,
+    Sum                 //add on top of the base value
+};
+
+enum struct SvgAnimTransform : uint8_t
+{
+    None = 0,
+    Translate,
+    Scale,
+    Rotate,
+    SkewX,
+    SkewY
+};
+
+struct SvgSmilAnim
+{
+    SvgAnimType type = SvgAnimType::Animate;
+    SvgNode* target = nullptr;          //the element this animation drives
+    char* attributeName = nullptr;
+    Array<char*> values;                //raw value strings (each item is one keyframe)
+    Array<float> keyTimes;              //normalized time per keyframe [0 ... 1]
+    Array<float> keySplines;            //4 control points per segment (count == 4 * (keyframes - 1))
+
+    float begin = 0.0f;                 //primary (earliest) start time in seconds
+    Array<float> begins;                //all resolved start times (sorted); supports begin lists & syncbase
+    char* id = nullptr;                 //this animation's id (so others can sync to it)
+    char* beginRaw = nullptr;           //raw begin attribute, resolved at load (may reference other ids)
+    float dur = 0.0f;                   //duration of a single iteration in seconds (0 == indefinite)
+    float repeatCount = 1.0f;           //number of iterations (INFINITY == indefinite)
+
+    SvgAnimCalcMode calcMode = SvgAnimCalcMode::Linear;
+    SvgAnimFill fill = SvgAnimFill::Remove;
+    SvgAnimAdditive additive = SvgAnimAdditive::Replace;
+    SvgAnimTransform transform = SvgAnimTransform::None;
+    bool accumulate = false;
+
+    //end time (begin + dur * repeatCount) precomputed; INFINITY for indefinite
+    float end = 0.0f;
+
+    //pre-parsed keyframe values (filled at resolve time so frames avoid re-parsing strings)
+    Array<float> fvals;       //numeric: 1 per keyframe; transform: xfStride per keyframe
+    Array<SvgColor> cvals;    //color: 1 per keyframe
+    uint8_t xfStride = 0;     //floats per keyframe for transform values
+
+    //attribute resolved to enums once (avoids per-frame attributeName string compares)
+    uint8_t slot = 0;         //SlotKind
+    uint8_t attr = 0;         //AttrId
+
+    //snapshot of the target attribute's base value (captured at resolve time)
+    bool baseValid = false;
+    float baseNumber = 0.0f;
+    SvgColor baseColor{};
+    Matrix baseMatrix = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+
+    //last value pushed to the paint - lets frames skip unchanged updates (no dirty, no RLE regen)
+    bool lastValid = false;
+    float lastNumber = 0.0f;
+    uint32_t lastColor = 0;
+    Matrix lastMatrix = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+
+    ~SvgSmilAnim()
+    {
+        tvg::free(attributeName);
+        tvg::free(id);
+        tvg::free(beginRaw);
+        ARRAY_FOREACH(p, values) tvg::free(*p);
+        values.reset();
+        keyTimes.reset();
+        keySplines.reset();
+        fvals.reset();
+        cvals.reset();
+        begins.reset();
+    }
+};
+
 struct SvgParserContext
 {
     SvgParser* parser = nullptr;
@@ -616,6 +718,7 @@ struct SvgParserContext
     Array<SvgNodeIdPair> nodesToStyle;
     Array<char*> images;        //embedded images
     Array<FontFace> fonts;
+    Array<SvgSmilAnim*> animations;  //SMIL animations collected during parsing
 
     // TODO: We can remove map and directly use the name instead of id in ThorVG v2
     // TODO: Maybe we can replace this with std::map. Currently, ArrayList seems fast enough.

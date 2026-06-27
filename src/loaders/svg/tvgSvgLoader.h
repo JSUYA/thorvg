@@ -26,7 +26,7 @@
 #include "tvgTaskScheduler.h"
 #include "tvgSvgCommon.h"
 
-struct SvgLoader : ImageLoader, Task
+struct SvgLoader : AnimLoader, Task
 {
     SvgParserContext ctx;
     string svgPath = "";
@@ -49,11 +49,27 @@ struct SvgLoader : ImageLoader, Task
 
     Paint* paint() override;
 
+    //SMIL animation support
+    //Whether the SVG carries SMIL animations is only known after parsing, so make sure
+    //the (possibly async) parse task has finished before answering.
+    bool animatable() override { done(); return animated; }
+    bool frame(float no) override;
+    float totalFrame() override;
+    float curFrame() override;
+    float duration() override;
+    Result segment(float begin, float end) override;
+
 private:
     SvgViewFlag viewFlag = SvgViewFlag::None;
     AspectRatioAlign align = AspectRatioAlign::XMidYMid;
     AspectRatioMeetOrSlice meetOrSlice = AspectRatioMeetOrSlice::Meet;
     Box vbox{};
+
+    //SMIL animation state
+    bool animated = false;       //true once SMIL animations are detected
+    float durationSec = 0.0f;    //total animation duration in seconds
+    float frameNo = 0.0f;        //current frame number
+    static constexpr float fps = 30.0f;  //synthetic frame rate (SVG SMIL is time-based)
 
     bool header();
     void clear(bool all = true);
