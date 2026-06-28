@@ -82,6 +82,7 @@ enum struct SvgNodeType : uint16_t
     Mask,
     CssStyle,
     Symbol,
+    Switch,
     Filter,
     GaussianBlur,
     Unknown

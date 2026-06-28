@@ -40,7 +40,7 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
 
 static inline bool _isGroupType(SvgNodeType type)
 {
-    if (type == SvgNodeType::Doc || type == SvgNodeType::G || type == SvgNodeType::Use || type == SvgNodeType::ClipPath || type == SvgNodeType::Symbol || type == SvgNodeType::Filter) return true;
+    if (type == SvgNodeType::Doc || type == SvgNodeType::G || type == SvgNodeType::Use || type == SvgNodeType::ClipPath || type == SvgNodeType::Symbol || type == SvgNodeType::Switch || type == SvgNodeType::Filter) return true;
     return false;
 }
 
@@ -1079,6 +1079,8 @@ static Scene* _sceneBuildHelper(SvgParserContext& ctx, const SvgNode* node, cons
                 if (ctx.accessible) ctx.access.push({paint->id, paint, tvg::duplicate(child->id)});
             }
             scene->add(paint);
+            //<switch> renders only the first child that yields content; the rest are fallbacks.
+            if (node->type == SvgNodeType::Switch) break;
         }
     }
     scene->opacity(node->style->opacity);

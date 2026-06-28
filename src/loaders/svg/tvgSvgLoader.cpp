@@ -1443,6 +1443,14 @@ static SvgNode* _createGNode(TVG_UNUSED SvgParserContext* ctx, SvgNode* parent, 
     return ctx->parser->node;
 }
 
+static SvgNode* _createSwitchNode(TVG_UNUSED SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
+{
+    //<switch>: a group that renders only the first child passing its conditions (builder keeps the first)
+    ctx->parser->node = _createNode(parent, SvgNodeType::Switch);
+    func(buf, bufLength, _attrParseGNode, ctx);
+    return ctx->parser->node;
+}
+
 static SvgNode* _createSvgNode(SvgParserContext* ctx, SvgNode* parent, const char* buf, unsigned bufLength, parseAttributes func)
 {
     ctx->parser->node = _createNode(parent, SvgNodeType::Doc);
@@ -2210,6 +2218,7 @@ static constexpr struct
     {"clipPath", sizeof("clipPath"), _createClipPathNode},
     {"style", sizeof("style"), _createCssStyleNode},
     {"symbol", sizeof("symbol"), _createSymbolNode},
+    {"switch", sizeof("switch"), _createSwitchNode},
     {"filter", sizeof("filter"), _createFilterNode}
 };
 
