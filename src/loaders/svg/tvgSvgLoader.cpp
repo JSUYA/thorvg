@@ -3545,20 +3545,65 @@ static void _svgLoaderParserXmlOpen(SvgParserContext* ctx, const char* content, 
     }
 }
 
+static unsigned _utf8Encode(int cp, char* out)
+{
+    if (cp < 0x80) { out[0] = (char)cp; return 1; }
+    if (cp < 0x800) { out[0] = (char)(0xC0 | (cp >> 6)); out[1] = (char)(0x80 | (cp & 0x3F)); return 2; }
+    if (cp < 0x10000) { out[0] = (char)(0xE0 | (cp >> 12)); out[1] = (char)(0x80 | ((cp >> 6) & 0x3F)); out[2] = (char)(0x80 | (cp & 0x3F)); return 3; }
+    out[0] = (char)(0xF0 | (cp >> 18)); out[1] = (char)(0x80 | ((cp >> 12) & 0x3F)); out[2] = (char)(0x80 | ((cp >> 6) & 0x3F)); out[3] = (char)(0x80 | (cp & 0x3F)); return 4;
+}
+
+
+//Decode XML character references (&lt; &gt; &amp; &quot; &apos; &#NN; &#xHH;) in place into out.
+static unsigned _decodeXmlEntities(const char* s, unsigned len, char* out)
+{
+    unsigned o = 0;
+    for (unsigned i = 0; i < len; ) {
+        if (s[i] == '&') {
+            unsigned j = i + 1;
+            while (j < len && j < i + 12 && s[j] != ';') ++j;
+            if (j < len && s[j] == ';') {
+                auto tok = s + i + 1;
+                auto tlen = j - i - 1;
+                int cp = -1;
+                if (tlen == 2 && !strncmp(tok, "lt", 2)) cp = '<';
+                else if (tlen == 2 && !strncmp(tok, "gt", 2)) cp = '>';
+                else if (tlen == 3 && !strncmp(tok, "amp", 3)) cp = '&';
+                else if (tlen == 4 && !strncmp(tok, "quot", 4)) cp = '"';
+                else if (tlen == 4 && !strncmp(tok, "apos", 4)) cp = '\'';
+                else if (tlen >= 2 && tok[0] == '#') cp = (tok[1] == 'x' || tok[1] == 'X') ? (int)strtol(tok + 2, nullptr, 16) : (int)strtol(tok + 1, nullptr, 10);
+                if (cp >= 0) { o += _utf8Encode(cp, out + o); i = j + 1; continue; }
+            }
+        }
+        out[o++] = s[i++];
+    }
+    return o;
+}
+
+
 static void _svgLoaderParserText(SvgParserContext* ctx, const char* content, unsigned int length)
 {
     auto node = ctx->parser->node;
+
+    //decode XML entities (e.g. &lt; &gt; &#176;) so text renders the real characters
+    char* decoded = nullptr;
+    if (memchr(content, '&', length)) {
+        decoded = tvg::malloc<char>(length + 1);
+        length = _decodeXmlEntities(content, length, decoded);
+        content = decoded;
+    }
 
     if (_hasTspanChild(node)) {
         auto run = _createNode(node, SvgNodeType::Tspan);
         run->node.text.x = FLT_MAX;
         run->node.text.y = FLT_MAX;
         run->node.text.text = append(run->node.text.text, content, length);
-        return;
+    } else {
+        auto& text = node->node.text;
+        text.text = append(text.text, content, length);
     }
 
-    auto& text = node->node.text;
-    text.text = append(text.text, content, length);
+    tvg::free(decoded);
 }
 
 
