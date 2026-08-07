@@ -1123,6 +1123,21 @@ static void _handleAlignmentBaselineAttr(TVG_UNUSED SvgParserContext* ctx, SvgNo
     node->style->alignmentBaseline = _toBaseline(value);
 }
 
+static void _handleLetterSpacingAttr(TVG_UNUSED SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    node->style->flags |= SvgStyleFlags::LetterSpacing;
+    node->style->letterSpacingRelative = false;
+    if (STR_AS(value, "normal")) {
+        node->style->letterSpacing = 0.0f;
+        return;
+    }
+    char* end = nullptr;
+    auto parsed = toFloat(value, &end);
+    auto percentage = _isPercentage(end);
+    node->style->letterSpacingRelative = percentage || strstr(value, "em") || strstr(value, "ex");
+    node->style->letterSpacing = parsed * (percentage ? 0.01f : _unitScale(value, 1.0f));
+}
+
 static void _handleCssClassAttr(SvgParserContext* ctx, SvgNode* node, const char* value)
 {
     auto cssClass = &node->style->cssClass;
@@ -1170,7 +1185,8 @@ static constexpr struct
     STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
     STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode),
     STYLE_DEF(text-anchor, TextAnchor, SvgStyleFlags::TextAnchor),
-    STYLE_DEF(alignment-baseline, AlignmentBaseline, SvgStyleFlags::AlignmentBaseline)};
+    STYLE_DEF(alignment-baseline, AlignmentBaseline, SvgStyleFlags::AlignmentBaseline),
+    STYLE_DEF(letter-spacing, LetterSpacing, SvgStyleFlags::LetterSpacing)};
 // clang-format on
 
 static SvgXmlSpace _toXmlSpace(const char* str)
@@ -2995,6 +3011,7 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!(child->stroke.flags & SvgStrokeFlags::Join)) child->stroke.join = parent->stroke.join;
     if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
     if (!(child->flags & SvgStyleFlags::TextAnchor)) child->textAnchor = parent->textAnchor;
+    if (!(child->flags & SvgStyleFlags::LetterSpacing)) child->letterSpacing = parent->letterSpacing;
 }
 
 
@@ -3013,6 +3030,10 @@ static void _styleCopy(SvgStyleProperty* to, const SvgStyleProperty* from)
     if (from->flags & SvgStyleFlags::BlendMode) to->blendMode = from->blendMode;
     if (from->flags & SvgStyleFlags::TextAnchor) to->textAnchor = from->textAnchor;
     if (from->flags & SvgStyleFlags::AlignmentBaseline) to->alignmentBaseline = from->alignmentBaseline;
+    if (from->flags & SvgStyleFlags::LetterSpacing) {
+        to->letterSpacing = from->letterSpacing;
+        to->letterSpacingRelative = from->letterSpacingRelative;
+    }
 
     //Fill
     to->fill.flags = (to->fill.flags | from->fill.flags);
@@ -3700,6 +3721,10 @@ static bool _svgLoaderParser(void* data, XMLType type, const char* content, unsi
 static void _updateStyle(SvgNode* node, SvgStyleProperty* parentStyle)
 {
     _styleInherit(node->style, parentStyle);
+    if (node->style->letterSpacingRelative) {
+        node->style->letterSpacing *= _findEmBaseFontSize(node);
+        node->style->letterSpacingRelative = false;
+    }
     ARRAY_FOREACH(p, node->child) {
         _updateStyle(*p, node->style);
     }
