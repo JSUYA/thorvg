@@ -155,6 +155,12 @@ static void _copyStyle(SvgStyleProperty* to, const SvgStyleProperty* from, bool 
         to->flags |= SvgStyleFlags::AlignmentBaseline;
         if (from->flagsImportance & SvgStyleFlags::AlignmentBaseline) to->flagsImportance |= SvgStyleFlags::AlignmentBaseline;
     }
+    if (((from->flags & SvgStyleFlags::LetterSpacing) && (overwrite || !(to->flags & SvgStyleFlags::LetterSpacing))) || _isImportanceApplicable(to->flagsImportance, from->flagsImportance, SvgStyleFlags::LetterSpacing)) {
+        to->letterSpacing = from->letterSpacing;
+        to->letterSpacingRelative = from->letterSpacingRelative;
+        to->flags |= SvgStyleFlags::LetterSpacing;
+        if (from->flagsImportance & SvgStyleFlags::LetterSpacing) to->flagsImportance |= SvgStyleFlags::LetterSpacing;
+    }
 }
 
 

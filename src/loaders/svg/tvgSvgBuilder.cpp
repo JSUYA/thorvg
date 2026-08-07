@@ -1070,13 +1070,35 @@ static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const
     return text;
 }
 
-static void _updatePos(Text* text, const SvgTextNode& textNode, float anchor, Point& textPos)
+static void _applyLetterSpacing(Text* text, float letterSpacing)
+{
+    if (letterSpacing == 0.0f) return;
+
+    auto utf8 = text->text();
+    auto advance = 0.0f;
+    uint32_t gaps = 0;
+    GlyphMetrics gm;
+    while (utf8 && *utf8) {
+        if (text->metrics(utf8, gm, &utf8) != Result::Success) return;
+        if (utf8 && *utf8) {
+            advance += gm.advance;
+            ++gaps;
+        }
+    }
+    if (advance <= 0.0f) return;
+
+    // Text::spacing() scales advances, so match the total offset using the measured glyph gaps.
+    auto scale = 1.0f + letterSpacing * gaps / advance;
+    text->spacing(scale > 0.0f ? scale : 0.0f, 1.0f);
+}
+
+static void _updatePos(Text* text, const SvgTextNode& textNode, float anchor, float letterSpacing, Point& textPos)
 {
     auto advance = 0.0f;
     if (auto utf8 = text->text()) {
         GlyphMetrics gm;
         while (utf8) {
-            if (text->metrics(utf8, gm, &utf8) == Result::Success) advance += gm.advance;
+            if (text->metrics(utf8, gm, &utf8) == Result::Success) advance += gm.advance + letterSpacing;
             else break;
         }
     }
@@ -1128,7 +1150,8 @@ static void _buildTspanScene(SvgParserContext& ctx, const SvgNode* node, Scene* 
             auto text = _buildText(&textNode, xmlSpace, nullptr, child->style->alignmentBaseline);
             if (text) {
                 text->align(child->style->textAnchor, 0.0f);
-                _updatePos(text, textNode, child->style->textAnchor, textPos);
+                _applyLetterSpacing(text, child->style->letterSpacing);
+                _updatePos(text, textNode, child->style->textAnchor, child->style->letterSpacing, textPos);
                 _applyTextFill(child->style, text, vBox, ctx.parser->global);
                 auto paint = _applyFilter(ctx, text, child, vBox, svgPath);
                 paint = _applyComposition(ctx, paint, child, vBox, svgPath);
@@ -1154,6 +1177,7 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
         auto text = _buildText(textNode, xmlSpace, node->transform, node->style->alignmentBaseline);
         if (!text) return nullptr;
         text->align(node->style->textAnchor, 0.0f);
+        _applyLetterSpacing(text, node->style->letterSpacing);
         _applyTextFill(node->style, text, vBox, ctx.parser->global);
         auto p = _applyFilter(ctx, text, node, vBox, svgPath);
         p = _applyComposition(ctx, p, node, vBox, svgPath);
@@ -1167,7 +1191,8 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
 
     if (auto text = _buildText(textNode, xmlSpace, nullptr, node->style->alignmentBaseline)) {
         text->align(node->style->textAnchor, 0.0f);
-        _updatePos(text, *textNode, node->style->textAnchor, textPos);
+        _applyLetterSpacing(text, node->style->letterSpacing);
+        _updatePos(text, *textNode, node->style->textAnchor, node->style->letterSpacing, textPos);
         _applyTextFill(node->style, text, vBox, ctx.parser->global);
         scene->add(text);
     }
