@@ -175,6 +175,12 @@ struct TextImpl : Text
         return Result::Success;
     }
 
+    void wordSpacing(float spacing)
+    {
+        fm.wordSpacing = spacing;
+        updated = true;
+    }
+
     bool update(RenderMethod* renderer, const Matrix& transform, Array<RenderData>& clips, uint8_t opacity, RenderUpdateFlag flag, TVG_UNUSED bool clipper)
     {
         if (!load()) return true;

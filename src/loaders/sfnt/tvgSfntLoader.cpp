@@ -47,6 +47,10 @@
 #define LINE_FEED_GLYPH_IDX 10
 #define DOT_GLYPH_IDX 46
 
+static float _advance(const FontMetrics& fm, float advance, uint32_t code)
+{
+    return advance * fm.spacing.x + (code == SPACE_GLYPH_IDX ? fm.wordSpacing * fm.scale : 0.0f);
+}
 
 #ifdef THORVG_FILE_IO_SUPPORT
 
@@ -292,7 +296,7 @@ void SfntLoader::wrapNone(FontMetrics& fm, const Point& box, const char* utf8, c
         if (ltgm) reader->positioning(ltgm->idx, rtgm->idx, offset);
 
         _build(rtgm->path, cursor, offset, out);
-        cursor.x += (rtgm->advance + offset.x) * fm.spacing.x;
+        cursor.x += _advance(fm, rtgm->advance + offset.x, code);
 
         if (cursor.x > fm.size.x) fm.size.x = cursor.x;  //text horizontal size
 
@@ -323,7 +327,7 @@ void SfntLoader::wrapChar(FontMetrics& fm, const Point& box, const char* utf8, c
         Point offset{};
         if (ltgm) reader->positioning(ltgm->idx, rtgm->idx, offset);
 
-        auto xadv = (rtgm->advance + offset.x) * fm.spacing.x;
+        auto xadv = _advance(fm, rtgm->advance + offset.x, code);
 
         //normal scenario
         if (xadv < box.x) {
@@ -370,7 +374,7 @@ void SfntLoader::wrapWord(FontMetrics& fm, const Point& box, const char* utf8, c
         Point offset{};
         if (ltgm) reader->positioning(ltgm->idx, rtgm->idx, offset);
 
-        auto xadv = (rtgm->advance + offset.x) * fm.spacing.x;
+        auto xadv = _advance(fm, rtgm->advance + offset.x, code);
 
         //try line-wrap
         if (cursor.x + xadv > box.x) {
@@ -436,7 +440,7 @@ void SfntLoader::wrapEllipsis(FontMetrics& fm, const Point& box, const char* utf
         Point offset{};
         if (ltgm) reader->positioning(ltgm->idx, rtgm->idx, offset);
 
-        auto xadv = (rtgm->advance + offset.x) * fm.spacing.x;
+        auto xadv = _advance(fm, rtgm->advance + offset.x, code);
 
         //normal case
         if (cursor.x + xadv < box.x) {

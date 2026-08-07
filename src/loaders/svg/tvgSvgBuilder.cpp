@@ -26,6 +26,7 @@
 #include "tvgFill.h"
 #include "tvgStr.h"
 #include "tvgShape.h"
+#include "tvgText.h"
 #include "tvgSvgCommon.h"
 #include "tvgSvgBuilder.h"
 #include "tvgSvgPath.h"
@@ -1042,7 +1043,7 @@ static void _applyTextBaseline(Text* text, SvgBaseline baseline, Matrix& transfo
     text->transform(transform);
 }
 
-static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const Matrix* transform, SvgBaseline baseline)
+static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const Matrix* transform, SvgBaseline baseline, float wordSpacing)
 {
     if (!textNode->text) return nullptr;
 
@@ -1058,6 +1059,7 @@ static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const
     auto processedText = _processText(textNode->text, xmlSpace);
     text->text(processedText);
     tvg::free(processedText);
+    to<TextImpl>(text)->wordSpacing(wordSpacing);
 
     TextMetrics tm;
     text->metrics(tm);
@@ -1070,13 +1072,14 @@ static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const
     return text;
 }
 
-static void _updatePos(Text* text, const SvgTextNode& textNode, float anchor, Point& textPos)
+static void _updatePos(Text* text, const SvgTextNode& textNode, float anchor, float wordSpacing, Point& textPos)
 {
     auto advance = 0.0f;
     if (auto utf8 = text->text()) {
         GlyphMetrics gm;
         while (utf8) {
-            if (text->metrics(utf8, gm, &utf8) == Result::Success) advance += gm.advance;
+            auto space = *utf8 == ' ';
+            if (text->metrics(utf8, gm, &utf8) == Result::Success) advance += gm.advance + (space ? wordSpacing : 0.0f);
             else break;
         }
     }
@@ -1125,10 +1128,10 @@ static void _buildTspanScene(SvgParserContext& ctx, const SvgNode* node, Scene* 
             if (textNode.x == FLT_MAX) textNode.x = textPos.x;
             if (textNode.y == FLT_MAX) textNode.y = textPos.y;
 
-            auto text = _buildText(&textNode, xmlSpace, nullptr, child->style->alignmentBaseline);
+            auto text = _buildText(&textNode, xmlSpace, nullptr, child->style->alignmentBaseline, child->style->wordSpacing);
             if (text) {
                 text->align(child->style->textAnchor, 0.0f);
-                _updatePos(text, textNode, child->style->textAnchor, textPos);
+                _updatePos(text, textNode, child->style->textAnchor, child->style->wordSpacing, textPos);
                 _applyTextFill(child->style, text, vBox, ctx.parser->global);
                 auto paint = _applyFilter(ctx, text, child, vBox, svgPath);
                 paint = _applyComposition(ctx, paint, child, vBox, svgPath);
@@ -1151,7 +1154,7 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
     if (xmlSpace == SvgXmlSpace::None) xmlSpace = SvgXmlSpace::Default;
 
     if (!_hasPositionedTspan(node, 0)) {
-        auto text = _buildText(textNode, xmlSpace, node->transform, node->style->alignmentBaseline);
+        auto text = _buildText(textNode, xmlSpace, node->transform, node->style->alignmentBaseline, node->style->wordSpacing);
         if (!text) return nullptr;
         text->align(node->style->textAnchor, 0.0f);
         _applyTextFill(node->style, text, vBox, ctx.parser->global);
@@ -1165,9 +1168,9 @@ static Paint* _textBuildHelper(SvgParserContext& ctx, const SvgNode* node, const
 
     Point textPos = {textNode->x, textNode->y};
 
-    if (auto text = _buildText(textNode, xmlSpace, nullptr, node->style->alignmentBaseline)) {
+    if (auto text = _buildText(textNode, xmlSpace, nullptr, node->style->alignmentBaseline, node->style->wordSpacing)) {
         text->align(node->style->textAnchor, 0.0f);
-        _updatePos(text, *textNode, node->style->textAnchor, textPos);
+        _updatePos(text, *textNode, node->style->textAnchor, node->style->wordSpacing, textPos);
         _applyTextFill(node->style, text, vBox, ctx.parser->global);
         scene->add(text);
     }

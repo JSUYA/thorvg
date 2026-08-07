@@ -1123,6 +1123,12 @@ static void _handleAlignmentBaselineAttr(TVG_UNUSED SvgParserContext* ctx, SvgNo
     node->style->alignmentBaseline = _toBaseline(value);
 }
 
+static void _handleWordSpacingAttr(SvgParserContext* ctx, SvgNode* node, const char* value)
+{
+    node->style->flags |= SvgStyleFlags::WordSpacing;
+    node->style->wordSpacing = STR_AS(value, "normal") ? 0.0f : _toFloat(ctx->parser, value, SvgParserLengthType::Horizontal);
+}
+
 static void _handleCssClassAttr(SvgParserContext* ctx, SvgNode* node, const char* value)
 {
     auto cssClass = &node->style->cssClass;
@@ -1170,7 +1176,8 @@ static constexpr struct
     STYLE_DEF(filter, Filter, SvgStyleFlags::Filter),
     STYLE_DEF(mix-blend-mode, MixBlendMode, SvgStyleFlags::BlendMode),
     STYLE_DEF(text-anchor, TextAnchor, SvgStyleFlags::TextAnchor),
-    STYLE_DEF(alignment-baseline, AlignmentBaseline, SvgStyleFlags::AlignmentBaseline)};
+    STYLE_DEF(alignment-baseline, AlignmentBaseline, SvgStyleFlags::AlignmentBaseline),
+    STYLE_DEF(word-spacing, WordSpacing, SvgStyleFlags::WordSpacing)};
 // clang-format on
 
 static SvgXmlSpace _toXmlSpace(const char* str)
@@ -2995,6 +3002,7 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!(child->stroke.flags & SvgStrokeFlags::Join)) child->stroke.join = parent->stroke.join;
     if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
     if (!(child->flags & SvgStyleFlags::TextAnchor)) child->textAnchor = parent->textAnchor;
+    if (!(child->flags & SvgStyleFlags::WordSpacing)) child->wordSpacing = parent->wordSpacing;
 }
 
 
@@ -3013,6 +3021,7 @@ static void _styleCopy(SvgStyleProperty* to, const SvgStyleProperty* from)
     if (from->flags & SvgStyleFlags::BlendMode) to->blendMode = from->blendMode;
     if (from->flags & SvgStyleFlags::TextAnchor) to->textAnchor = from->textAnchor;
     if (from->flags & SvgStyleFlags::AlignmentBaseline) to->alignmentBaseline = from->alignmentBaseline;
+    if (from->flags & SvgStyleFlags::WordSpacing) to->wordSpacing = from->wordSpacing;
 
     //Fill
     to->fill.flags = (to->fill.flags | from->fill.flags);

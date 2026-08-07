@@ -249,6 +249,51 @@ TEST_CASE("Load SVG Data", "[tvgPicture]")
     Paint::rel(picture);
 }
 
+TEST_CASE("SVG Word Spacing", "[tvgPicture]")
+{
+    REQUIRE(Initializer::init() == Result::Success);
+    {
+        REQUIRE(Text::load(TEST_DIR "/PublicSans-Regular.ttf") == Result::Success);
+
+        auto picture = Picture::gen();
+        picture->accessible = true;
+        REQUIRE(picture->load(TEST_DIR "/word-spacing.svg") == Result::Success);
+
+        auto normalPaint = const_cast<Paint*>(picture->paint(Accessor::id("normal")));
+        auto widePaint = const_cast<Paint*>(picture->paint(Accessor::id("wide")));
+        auto tightPaint = const_cast<Paint*>(picture->paint(Accessor::id("tight")));
+        auto classPaint = const_cast<Paint*>(picture->paint(Accessor::id("class")));
+        auto inheritedPaint = const_cast<Paint*>(picture->paint(Accessor::id("inherited")));
+        auto resetPaint = const_cast<Paint*>(picture->paint(Accessor::id("reset")));
+        auto tspanPaint = const_cast<Paint*>(picture->paint(Accessor::id("tspan")));
+        REQUIRE(normalPaint);
+        REQUIRE(widePaint);
+        REQUIRE(tightPaint);
+        REQUIRE(classPaint);
+        REQUIRE(inheritedPaint);
+        REQUIRE(resetPaint);
+        REQUIRE(tspanPaint);
+
+        float x, y, normal, wide, tight, css, inherited, reset, tspan, h;
+        REQUIRE(normalPaint->bounds(&x, &y, &normal, &h) == Result::Success);
+        REQUIRE(widePaint->bounds(&x, &y, &wide, &h) == Result::Success);
+        REQUIRE(tightPaint->bounds(&x, &y, &tight, &h) == Result::Success);
+        REQUIRE(classPaint->bounds(&x, &y, &css, &h) == Result::Success);
+        REQUIRE(inheritedPaint->bounds(&x, &y, &inherited, &h) == Result::Success);
+        REQUIRE(resetPaint->bounds(&x, &y, &reset, &h) == Result::Success);
+        REQUIRE(tspanPaint->bounds(&x, &y, &tspan, &h) == Result::Success);
+        REQUIRE(wide == Approx(normal + 20.0f));
+        REQUIRE(tight == Approx(normal - 4.0f));
+        REQUIRE(css == Approx(normal + 12.0f));
+        REQUIRE(inherited == Approx(normal + 8.0f));
+        REQUIRE(reset == Approx(normal));
+        REQUIRE(tspan == Approx(wide));
+
+        Paint::rel(picture);
+    }
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
 #endif
 
 #ifdef THORVG_PNG_LOADER_SUPPORT

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="280">
+  <style>.spaced { word-spacing: 6px; }</style>
+  <text id="normal" x="10" y="35" font-family="PublicSans-Regular" font-size="40">A B C</text>
+  <text id="wide" x="10" y="75" font-family="PublicSans-Regular" font-size="40" word-spacing="10">A B C</text>
+  <text id="tight" x="10" y="115" font-family="PublicSans-Regular" font-size="40" style="word-spacing: -2px">A B C</text>
+  <text id="class" class="spaced" x="10" y="155" font-family="PublicSans-Regular" font-size="40">A B C</text>
+  <g word-spacing="4">
+    <text id="inherited" x="10" y="195" font-family="PublicSans-Regular" font-size="40">A B C</text>
+  </g>
+  <g word-spacing="10">
+    <text id="reset" x="10" y="235" font-family="PublicSans-Regular" font-size="40" word-spacing="normal">A B C</text>
+  </g>
+  <text id="tspan" x="10" y="275" font-family="PublicSans-Regular" font-size="40" word-spacing="10"><tspan>A </tspan><tspan>B C</tspan></text>
+</svg>
