@@ -283,16 +283,19 @@ void SfntLoader::wrapNone(FontMetrics& fm, const Point& box, const char* utf8, c
         auto code = _codepoints(&utf8, end);
         if (code == LINE_FEED_GLYPH_IDX) {
             line = feedLine(fm, box.x, cursor.x, line, out.pts.count, cursor, out);
+            if (fm.letterSpacing != 0.0f) ltgm = nullptr;
             continue;
         }
         auto rtgm = request(code);  //right side glyph between the two adjacent glyphs
         if (!rtgm) continue;
 
+        if (ltgm && rtgm->advance != 0.0f) cursor.x += fm.letterSpacing * fm.scale;
+
         Point offset{};
         if (ltgm) reader->positioning(ltgm->idx, rtgm->idx, offset);
 
         _build(rtgm->path, cursor, offset, out);
-        cursor.x += (rtgm->advance + offset.x) * fm.spacing.x;
+        cursor.x += (rtgm->advance + offset.x) * fm.spacing.x + (code == SPACE_GLYPH_IDX ? fm.wordSpacing * fm.scale : 0.0f);
 
         if (cursor.x > fm.size.x) fm.size.x = cursor.x;  //text horizontal size
 
