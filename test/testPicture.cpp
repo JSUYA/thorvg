@@ -249,6 +249,37 @@ TEST_CASE("Load SVG Data", "[tvgPicture]")
     Paint::rel(picture);
 }
 
+#ifdef THORVG_TTF_LOADER_SUPPORT
+
+TEST_CASE("SVG text spacing", "[tvgPicture]")
+{
+    static const char* svg = R"(<svg xmlns="http://www.w3.org/2000/svg">
+        <text id="plain" x="300" text-anchor="end" font-family="PublicSans-Regular" font-size="100">Á B</text>
+        <text id="spaced" x="300" text-anchor="end" font-family="PublicSans-Regular" font-size="100" letter-spacing="10" word-spacing="20">Á B</text>
+    </svg>)";
+
+    REQUIRE(Initializer::init() == Result::Success);
+    REQUIRE(Text::load(TEST_DIR"/PublicSans-Regular.ttf") == Result::Success);
+
+    auto picture = Picture::gen();
+    picture->accessible = true;
+    REQUIRE(picture->load(svg, strlen(svg), "svg") == Result::Success);
+
+    auto left = [&](const char* id) {
+        auto paint = const_cast<Paint*>(picture->paint(Accessor::id(id)));
+        REQUIRE(paint);
+        auto x = 0.0f;
+        REQUIRE(paint->bounds(&x, nullptr, nullptr, nullptr) == Result::Success);
+        return x;
+    };
+    REQUIRE(left("spaced") == Approx(left("plain") - 40.0f).margin(0.001f));
+
+    Paint::rel(picture);
+    REQUIRE(Initializer::term() == Result::Success);
+}
+
+#endif
+
 #endif
 
 #ifdef THORVG_PNG_LOADER_SUPPORT

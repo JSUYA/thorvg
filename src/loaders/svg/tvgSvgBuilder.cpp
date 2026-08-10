@@ -26,6 +26,7 @@
 #include "tvgFill.h"
 #include "tvgStr.h"
 #include "tvgShape.h"
+#include "tvgText.h"
 #include "tvgSvgCommon.h"
 #include "tvgSvgBuilder.h"
 #include "tvgSvgPath.h"
@@ -1072,27 +1073,8 @@ static Text* _buildText(const SvgTextNode* textNode, SvgXmlSpace xmlSpace, const
 
 static void _applySpacing(Text* text, float letterSpacing, float wordSpacing)
 {
-    if (letterSpacing == 0.0f && wordSpacing == 0.0f) return;
-
-    auto utf8 = text->text();
-    auto advance = 0.0f;
-    uint32_t gaps = 0;
-    uint32_t spaces = 0;
-    GlyphMetrics gm;
-    while (utf8 && *utf8) {
-        auto space = *utf8 == ' ';
-        if (text->metrics(utf8, gm, &utf8) != Result::Success) return;
-        if (utf8 && *utf8) {
-            advance += gm.advance;
-            ++gaps;
-            if (space) ++spaces;
-        }
-    }
-    if (advance <= 0.0f) return;
-
-    // Text::spacing() scales advances, so match the total offset using measured gaps.
-    auto scale = 1.0f + (letterSpacing * gaps + wordSpacing * spaces) / advance;
-    text->spacing(scale > 0.0f ? scale : 0.0f, 1.0f);
+    to<TextImpl>(text)->fm.letterSpacing = letterSpacing;
+    to<TextImpl>(text)->fm.wordSpacing = wordSpacing;
 }
 
 static void _updatePos(Text* text, const SvgTextNode& textNode, float anchor, float letterSpacing, float wordSpacing, Point& textPos)
