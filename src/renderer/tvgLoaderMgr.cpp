@@ -168,10 +168,11 @@ static FileType _convert(const char* mimeType)
     return type;
 }
 
-static tvg::Loader* _findFromCache(const char* filename)
+static tvg::Loader* _findFromCache(const char* filename, const AssetResolver* resolver = nullptr)
 {
     ScopedLock lock(_key);
     INLIST_FOREACH(_activeLoaders, loader) {
+        if (resolver && loader->type == FileType::Svg) continue;
         if (loader->cached && loader->hashpath && !strcmp(loader->hashpath, filename)) {
             ++loader->sharing;
             return loader;
@@ -180,10 +181,10 @@ static tvg::Loader* _findFromCache(const char* filename)
     return nullptr;
 }
 
-static tvg::Loader* _findFromCache(const char* data, uint32_t size, const char* mimeType)
+static tvg::Loader* _findFromCache(const char* data, uint32_t size, const char* mimeType, const AssetResolver* resolver = nullptr)
 {
     auto type = _convert(mimeType);
-    if (type == FileType::Unknown) return nullptr;
+    if (type == FileType::Unknown || (resolver && type == FileType::Svg)) return nullptr;
 
     auto key = HASH_KEY(data);
 
@@ -234,7 +235,7 @@ tvg::Loader* LoaderMgr::loader(const char* filename, LoaderOps& ops, Result& ret
 #ifdef THORVG_FILE_IO_SUPPORT
     if (!filename) return nullptr;
 
-    if (auto loader = _findFromCache(filename)) return loader;
+    if (auto loader = _findFromCache(filename, ops.resolver)) return loader;
 
     ret = Result::InvalidArguments;
 
@@ -283,7 +284,7 @@ tvg::Loader* LoaderMgr::loader(const char* data, uint32_t size, const char* mime
     // Note that users could use the same data pointer with the different content.
     // Thus caching is only valid for shareable.
     if (ops.owner == Ownership::Borrow) {
-        if (auto loader = _findFromCache(data, size, mimeType)) return loader;
+        if (auto loader = _findFromCache(data, size, mimeType, ops.resolver)) return loader;
     }
 
     // Try with the given MimeType

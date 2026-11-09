@@ -52,16 +52,16 @@ struct LoaderOps
 {
     Type caller;  // which requests this?
     Ownership owner;
+    AssetResolver* resolver = nullptr;
 };
 
 struct PictureOps : LoaderOps
 {
-    AssetResolver* resolver;
     const char* rpath;  // decide the relative path file if the file is loaded from memory
     bool accessible;    // allow the accessor
 
     PictureOps(Ownership owner, AssetResolver* resolver, const char* rpath, bool accessible) :
-        LoaderOps{Type::Picture, owner}, resolver(resolver), rpath(rpath), accessible(accessible) {}
+        LoaderOps{Type::Picture, owner, resolver}, rpath(rpath), accessible(accessible) {}
 };
 
 struct Loader
