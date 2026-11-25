@@ -41,6 +41,7 @@ static bool _takesPrecedence(const SvgStyleProperty* from, const SvgStylePropert
 static void _markCopied(SvgStyleProperty* to, const SvgStyleProperty* from, SvgStyleFlags flag)
 {
     to->flags |= flag;
+    to->inherit(flag, from->flagsInherit & flag);
     if (from->flagsImportance & flag) to->flagsImportance |= flag;
 }
 

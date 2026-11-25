@@ -581,6 +581,7 @@ struct SvgStyleProperty
     float wordSpacing;
     SvgStyleFlags flags;
     SvgStyleFlags flagsImportance; //indicates the importance of the flag - if set, higher priority is applied (https://drafts.csswg.org/css-cascade-4/#importance)
+    SvgStyleFlags flagsInherit;
     bool curColorSet;
     bool paintOrder; //true if default (fill, stroke), false otherwise
     bool display;
@@ -588,6 +589,11 @@ struct SvgStyleProperty
     bool wordSpacingRelative;
     BlendMethod blendMode;
     FilterMethod imageRendering;
+
+    void inherit(SvgStyleFlags flag, bool enable)
+    {
+        flagsInherit = SvgStyleFlags(enable ? (int(flagsInherit) | int(flag)) : (int(flagsInherit) & ~int(flag)));
+    }
 };
 
 struct SvgNode

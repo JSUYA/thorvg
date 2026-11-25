@@ -1306,6 +1306,12 @@ static constexpr struct
 };
 // clang-format on
 
+static bool _inheritsParentValue(SvgStyleFlags flag, const char* value)
+{
+    if (flag != SvgStyleFlags::ImageRendering) return false;
+    return STR_AS(value, "inherit") || STR_AS(value, "unset") || STR_AS(value, "revert");
+}
+
 static SvgXmlSpace _toXmlSpace(const char* str)
 {
     if (STR_AS(str, "default")) return SvgXmlSpace::Default;
@@ -1355,8 +1361,6 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
                 // browsers drop the css-level text-top/text-bottom (https://www.w3.org/TR/css-inline-3/#dominant-baseline-property)
                 if (STR_AS(value, "text-top") || STR_AS(value, "text-bottom")) valid = false;
                 else valid = _toBaseline(value) != SvgBaseline::Auto || STR_AS(value, "auto");
-            } else if (styleTags[i].flag == SvgStyleFlags::ImageRendering) {
-                valid = !STR_AS(value, "inherit");  //keep the inherited value
             } else if (styleTags[i].flag == SvgStyleFlags::LetterSpacing || styleTags[i].flag == SvgStyleFlags::WordSpacing) {
                 char* end = nullptr;
                 toFloat(value, &end);
@@ -1366,12 +1370,14 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
                 if (importance) tvg::free(const_cast<char*>(value));
                 return true;
             }
+            auto inherit = _inheritsParentValue(styleTags[i].flag, value);
             if (style) {
                 if (importance || !(node->style->flagsImportance & styleTags[i].flag)) {
                     styleTags[i].tagHandler(ctx, node, value);
                     node->style->flags = (node->style->flags | styleTags[i].flag);
+                    node->style->inherit(styleTags[i].flag, inherit);
                 }
-            } else if (!(node->style->flags & styleTags[i].flag)) {
+            } else if (!inherit && !(node->style->flags & styleTags[i].flag)) {
                 styleTags[i].tagHandler(ctx, node, value);
             }
             if (importance) {
@@ -3149,7 +3155,7 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!(child->flags & SvgStyleFlags::DominantBaseline)) child->dominantBaseline = parent->dominantBaseline;
     if (!(child->flags & SvgStyleFlags::LetterSpacing)) child->letterSpacing = parent->letterSpacing;
     if (!(child->flags & SvgStyleFlags::WordSpacing)) child->wordSpacing = parent->wordSpacing;
-    if (!(child->flags & SvgStyleFlags::ImageRendering)) child->imageRendering = parent->imageRendering;
+    if (!(child->flags & SvgStyleFlags::ImageRendering) || (child->flagsInherit & SvgStyleFlags::ImageRendering)) child->imageRendering = parent->imageRendering;
 }
 
 
@@ -3227,6 +3233,7 @@ static void _copyAttr(SvgNode* to, const SvgNode* from)
     //Copy style attribute
     _styleCopy(to->style, from->style);
     to->style->flags = (to->style->flags | from->style->flags);
+    to->style->flagsInherit |= from->style->flagsInherit;
     svgUtilReplace(&to->style->clipPath.url, from->style->clipPath.url);
     svgUtilReplace(&to->style->mask.url, from->style->mask.url);
     svgUtilReplace(&to->style->filter.url, from->style->filter.url);
