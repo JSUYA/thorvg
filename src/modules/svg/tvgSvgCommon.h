@@ -549,7 +549,6 @@ enum class SvgBaseline : uint8_t
 enum class SvgFontWeight : int16_t
 {
     Invalid = 0,
-    Inherit = -1,
     Bolder = -2,
     Lighter = -3,
     Weight100 = 100,

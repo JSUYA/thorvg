@@ -183,6 +183,11 @@ static void _copyStyle(SvgStyleProperty* to, const SvgStyleProperty* from, bool 
         to->wordSpacingRelative = from->wordSpacingRelative;
         _markCopied(to, from, SvgStyleFlags::WordSpacing);
     }
+    for (auto bit = 1; bit <= int(from->flagsInherit); bit <<= 1) {
+        auto flag = SvgStyleFlags(bit);
+        if (!(from->flagsInherit & flag)) continue;
+        if (!(keep & flag) || _isImportanceApplicable(to->flagsImportance, from->flagsImportance, flag)) _markCopied(to, from, flag);
+    }
 }
 
 

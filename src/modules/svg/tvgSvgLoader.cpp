@@ -237,7 +237,6 @@ static SvgFontWeight _toFontWeight(const char* str)
 {
     if (STR_AS(str, "normal")) return SvgFontWeight::Normal;
     if (STR_AS(str, "bold")) return SvgFontWeight::Bold;
-    if (STR_AS(str, "inherit")) return SvgFontWeight::Inherit;
     if (STR_AS(str, "bolder")) return SvgFontWeight::Bolder;
     if (STR_AS(str, "lighter")) return SvgFontWeight::Lighter;
 
@@ -1306,9 +1305,11 @@ static constexpr struct
 };
 // clang-format on
 
+static constexpr auto inheritedStyles = SvgStyleFlags::Color | SvgStyleFlags::Fill | SvgStyleFlags::FillRule | SvgStyleFlags::FillOpacity | SvgStyleFlags::Stroke | SvgStyleFlags::StrokeWidth | SvgStyleFlags::StrokeLineJoin | SvgStyleFlags::StrokeMiterlimit | SvgStyleFlags::StrokeLineCap | SvgStyleFlags::StrokeOpacity | SvgStyleFlags::StrokeDashArray | SvgStyleFlags::StrokeDashOffset | SvgStyleFlags::PaintOrder | SvgStyleFlags::ImageRendering | SvgStyleFlags::TextAnchor | SvgStyleFlags::DominantBaseline | SvgStyleFlags::FontWeight | SvgStyleFlags::LetterSpacing | SvgStyleFlags::WordSpacing;
+
 static bool _inheritsParentValue(SvgStyleFlags flag, const char* value)
 {
-    if (flag != SvgStyleFlags::ImageRendering) return false;
+    if (!(inheritedStyles & flag)) return false;
     return STR_AS(value, "inherit") || STR_AS(value, "unset") || STR_AS(value, "revert");
 }
 
@@ -1366,14 +1367,14 @@ static bool _parseStyleAttr(void* data, const char* key, const char* value, bool
                 toFloat(value, &end);
                 valid = end != value || STR_AS(value, "normal");
             }
-            if (!valid) {
+            auto inherit = _inheritsParentValue(styleTags[i].flag, value);
+            if (!valid && !inherit) {
                 if (importance) tvg::free(const_cast<char*>(value));
                 return true;
             }
-            auto inherit = _inheritsParentValue(styleTags[i].flag, value);
             if (style) {
                 if (importance || !(node->style->flagsImportance & styleTags[i].flag)) {
-                    styleTags[i].tagHandler(ctx, node, value);
+                    if (!inherit) styleTags[i].tagHandler(ctx, node, value);
                     node->style->flags = (node->style->flags | styleTags[i].flag);
                     node->style->inherit(styleTags[i].flag, inherit);
                 }
@@ -3103,8 +3104,9 @@ static SvgStyleGradient* _cloneGradient(SvgStyleGradient* from)
 
 static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* parent)
 {
+    auto inherit = child->flagsInherit;
     auto parentWeight = parent ? parent->fontWeight : SvgFontWeight::Normal;
-    if (!(child->flags & SvgStyleFlags::FontWeight) || child->fontWeight == SvgFontWeight::Inherit) child->fontWeight = parentWeight;
+    if (!(child->flags & SvgStyleFlags::FontWeight) || (inherit & SvgStyleFlags::FontWeight)) child->fontWeight = parentWeight;
     else if (child->fontWeight == SvgFontWeight::Bolder) child->fontWeight = parentWeight <= SvgFontWeight::Weight300 ? SvgFontWeight::Normal : parentWeight <= SvgFontWeight::Weight500 ? SvgFontWeight::Bold
                                                                                                                                                                                          : SvgFontWeight::Weight900;
     else if (child->fontWeight == SvgFontWeight::Lighter) child->fontWeight = parentWeight <= SvgFontWeight::Weight500 ? SvgFontWeight::Weight100 : parentWeight <= SvgFontWeight::Bold ? SvgFontWeight::Normal
@@ -3113,49 +3115,55 @@ static void _styleInherit(SvgStyleProperty* child, const SvgStyleProperty* paren
     if (!parent) return;
 
     //Inherit the property of parent if not present in child.
-    if (!child->curColorSet) {
+    if (!child->curColorSet || (inherit & SvgStyleFlags::Color)) {
         child->color = parent->color;
         child->curColorSet = parent->curColorSet;
     }
-    if (!(child->flags & SvgStyleFlags::PaintOrder)) child->paintOrder = parent->paintOrder;
+    if (!(child->flags & SvgStyleFlags::PaintOrder) || (inherit & SvgStyleFlags::PaintOrder)) child->paintOrder = parent->paintOrder;
 
     //Fill
-    if (!(child->fill.flags & SvgFillFlags::Paint)) {
+    if (!(child->fill.flags & SvgFillFlags::Paint) || (inherit & SvgStyleFlags::Fill)) {
         child->fill.paint.color = parent->fill.paint.color;
         child->fill.paint.none = parent->fill.paint.none;
         child->fill.paint.curColor = parent->fill.paint.curColor;
-        if (parent->fill.paint.url) _copyId(&child->fill.paint.url, parent->fill.paint.url);
+        _copyId(&child->fill.paint.url, parent->fill.paint.url);
     }
-    if (!(child->fill.flags & SvgFillFlags::Opacity)) child->fill.opacity = parent->fill.opacity;
-    if (!(child->fill.flags & SvgFillFlags::FillRule)) child->fill.fillRule = parent->fill.fillRule;
+    if (!(child->fill.flags & SvgFillFlags::Opacity) || (inherit & SvgStyleFlags::FillOpacity)) child->fill.opacity = parent->fill.opacity;
+    if (!(child->fill.flags & SvgFillFlags::FillRule) || (inherit & SvgStyleFlags::FillRule)) child->fill.fillRule = parent->fill.fillRule;
 
     //Stroke
-    if (!(child->stroke.flags & SvgStrokeFlags::Paint)) {
+    if (!(child->stroke.flags & SvgStrokeFlags::Paint) || (inherit & SvgStyleFlags::Stroke)) {
         child->stroke.paint.color = parent->stroke.paint.color;
         child->stroke.paint.none = parent->stroke.paint.none;
         child->stroke.paint.curColor = parent->stroke.paint.curColor;
-        if (parent->stroke.paint.url) _copyId(&child->stroke.paint.url, parent->stroke.paint.url);
+        _copyId(&child->stroke.paint.url, parent->stroke.paint.url);
     }
-    if (!(child->stroke.flags & SvgStrokeFlags::Opacity)) child->stroke.opacity = parent->stroke.opacity;
-    if (!(child->stroke.flags & SvgStrokeFlags::Width)) child->stroke.width = parent->stroke.width;
-    if (!(child->stroke.flags & SvgStrokeFlags::Dash)) {
+    if (!(child->stroke.flags & SvgStrokeFlags::Opacity) || (inherit & SvgStyleFlags::StrokeOpacity)) child->stroke.opacity = parent->stroke.opacity;
+    if (!(child->stroke.flags & SvgStrokeFlags::Width) || (inherit & SvgStyleFlags::StrokeWidth)) child->stroke.width = parent->stroke.width;
+    if (!(child->stroke.flags & SvgStrokeFlags::Dash) || (inherit & SvgStyleFlags::StrokeDashArray)) {
+        child->stroke.dash.array.clear();
         if (parent->stroke.dash.array.count > 0) {
-            child->stroke.dash.array.clear();
             child->stroke.dash.array.reserve(parent->stroke.dash.array.count);
             for (auto& p : parent->stroke.dash.array) {
                 child->stroke.dash.array.push(p);
             }
         }
     }
-    if (!(child->stroke.flags & SvgStrokeFlags::DashOffset)) child->stroke.dash.offset = parent->stroke.dash.offset;
-    if (!(child->stroke.flags & SvgStrokeFlags::Cap)) child->stroke.cap = parent->stroke.cap;
-    if (!(child->stroke.flags & SvgStrokeFlags::Join)) child->stroke.join = parent->stroke.join;
-    if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
-    if (!(child->flags & SvgStyleFlags::TextAnchor)) child->textAnchor = parent->textAnchor;
-    if (!(child->flags & SvgStyleFlags::DominantBaseline)) child->dominantBaseline = parent->dominantBaseline;
-    if (!(child->flags & SvgStyleFlags::LetterSpacing)) child->letterSpacing = parent->letterSpacing;
-    if (!(child->flags & SvgStyleFlags::WordSpacing)) child->wordSpacing = parent->wordSpacing;
-    if (!(child->flags & SvgStyleFlags::ImageRendering) || (child->flagsInherit & SvgStyleFlags::ImageRendering)) child->imageRendering = parent->imageRendering;
+    if (!(child->stroke.flags & SvgStrokeFlags::DashOffset) || (inherit & SvgStyleFlags::StrokeDashOffset)) child->stroke.dash.offset = parent->stroke.dash.offset;
+    if (!(child->stroke.flags & SvgStrokeFlags::Cap) || (inherit & SvgStyleFlags::StrokeLineCap)) child->stroke.cap = parent->stroke.cap;
+    if (!(child->stroke.flags & SvgStrokeFlags::Join) || (inherit & SvgStyleFlags::StrokeLineJoin)) child->stroke.join = parent->stroke.join;
+    if (!(child->stroke.flags & SvgStrokeFlags::Miterlimit) || (inherit & SvgStyleFlags::StrokeMiterlimit)) child->stroke.miterlimit = parent->stroke.miterlimit;
+    if (!(child->flags & SvgStyleFlags::TextAnchor) || (inherit & SvgStyleFlags::TextAnchor)) child->textAnchor = parent->textAnchor;
+    if (!(child->flags & SvgStyleFlags::DominantBaseline) || (inherit & SvgStyleFlags::DominantBaseline)) child->dominantBaseline = parent->dominantBaseline;
+    if (!(child->flags & SvgStyleFlags::LetterSpacing) || (inherit & SvgStyleFlags::LetterSpacing)) {
+        child->letterSpacing = parent->letterSpacing;
+        child->letterSpacingRelative = false;
+    }
+    if (!(child->flags & SvgStyleFlags::WordSpacing) || (inherit & SvgStyleFlags::WordSpacing)) {
+        child->wordSpacing = parent->wordSpacing;
+        child->wordSpacingRelative = false;
+    }
+    if (!(child->flags & SvgStyleFlags::ImageRendering) || (inherit & SvgStyleFlags::ImageRendering)) child->imageRendering = parent->imageRendering;
 }
 
 
